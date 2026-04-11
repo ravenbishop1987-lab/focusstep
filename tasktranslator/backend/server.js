@@ -623,7 +623,7 @@ app.post('/analytics/page-view', async (req, res) => {
 // ── Systeme.io lead capture ───────────────────────────────────────────────────
 app.post('/capture-lead', async (req, res) => {
   const { firstName, email } = req.body || {};
-  if (!email || !firstName) return res.status(400).json({ error: 'firstName and email required' });
+  if (!email) return res.status(400).json({ error: 'email required' });
 
   const apiKey = process.env.SYSTEME_API_KEY;
   if (!apiKey) return res.status(500).json({ error: 'Lead capture not configured' });
@@ -633,7 +633,8 @@ app.post('/capture-lead', async (req, res) => {
       ? process.env.SYSTEME_TAG_IDS.split(',').map(t => parseInt(t.trim(), 10)).filter(Boolean)
       : [];
 
-    const body = { email, fields: [{ slug: 'first_name', value: firstName }] };
+    const safeFirstName = String(firstName || 'FocusStep User').trim() || 'FocusStep User';
+    const body = { email, fields: [{ slug: 'first_name', value: safeFirstName }] };
     if (tagIds.length) body.tagIds = tagIds;
 
     const response = await fetch('https://api.systeme.io/api/contacts', {
