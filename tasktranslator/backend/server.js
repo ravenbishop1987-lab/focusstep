@@ -54,6 +54,7 @@ const USE_LOCAL_LM = process.env.USE_LOCAL_LM === 'true';
 const LM_STUDIO_BASE = process.env.LM_STUDIO_URL || 'http://localhost:1234';
 const LM_STUDIO_URL = LM_STUDIO_BASE + '/v1/chat/completions';
 const LM_STUDIO_MODEL = process.env.LM_STUDIO_MODEL || 'local-model';
+const ANTHROPIC_MODEL = process.env.ANTHROPIC_MODEL || 'claude-3-5-haiku-latest';
 const USE_EMBEDDINGS = process.env.USE_EMBEDDINGS === 'true';
 const LM_STUDIO_EMBED_URL = LM_STUDIO_BASE + '/v1/embeddings';
 const LM_STUDIO_EMBED_MODEL = process.env.LM_STUDIO_EMBED_MODEL || 'nomic-ai/nomic-embed-text-v1.5-GGUF';
@@ -88,7 +89,12 @@ async function callAI(systemPrompt, userContent, maxTokens) {
     const json = await res.json();
     return json.choices[0].message.content;
   }
-  const message = await anthropic.messages.create({ model: 'claude-haiku-4-5-20251001', max_tokens: maxTokens, system: systemPrompt, messages: [{ role: 'user', content: userContent }] });
+  const message = await anthropic.messages.create({
+    model: ANTHROPIC_MODEL,
+    max_tokens: maxTokens,
+    system: systemPrompt,
+    messages: [{ role: 'user', content: userContent }]
+  });
   return message.content[0].text;
 }
 
