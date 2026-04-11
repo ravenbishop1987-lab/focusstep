@@ -1,0 +1,64 @@
+<svg width="1600" height="900" viewBox="0 0 1600 900" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1600" height="900" fill="#F7F5F2"/>
+  <rect x="0" y="0" width="1600" height="96" fill="#FFFFFF"/>
+  <line x1="0" y1="96.5" x2="1600" y2="96.5" stroke="#E5E0D8"/>
+
+  <circle cx="88" cy="48" r="16" fill="#6B8F71"/>
+  <text x="88" y="54" text-anchor="middle" font-family="Georgia, serif" font-size="22" fill="white">◎</text>
+  <text x="120" y="57" font-family="Georgia, serif" font-size="34" fill="#2C2825">Focus<tspan fill="#6B8F71" font-style="italic">Step</tspan></text>
+
+  <rect x="628" y="26" width="102" height="42" rx="21" fill="#EBF2EC"/>
+  <text x="679" y="52" text-anchor="middle" font-family="Arial, sans-serif" font-size="18" fill="#4A6B50">Translate</text>
+
+  <rect x="744" y="26" width="92" height="42" rx="21" fill="#FFFFFF" stroke="#E5E0D8"/>
+  <text x="790" y="52" text-anchor="middle" font-family="Arial, sans-serif" font-size="18" fill="#7A7168">Pricing</text>
+
+  <rect x="1090" y="23" width="244" height="50" rx="25" fill="#FFFFFF" stroke="#E5E0D8"/>
+  <circle cx="1118" cy="48" r="17" fill="url(#avatar)"/>
+  <text x="1118" y="54" text-anchor="middle" font-family="Arial, sans-serif" font-size="16" font-weight="700" fill="white">R</text>
+  <text x="1150" y="43" font-family="Arial, sans-serif" font-size="12" letter-spacing="1.2" fill="#B0A898">DASHBOARD</text>
+  <text x="1150" y="60" font-family="Arial, sans-serif" font-size="16" fill="#2C2825">raven</text>
+  <path d="M1301 43L1311 53L1321 43" stroke="#7A7168" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+
+  <rect x="1064" y="106" width="306" height="356" rx="22" fill="#FFFFFF" stroke="#E5E0D8"/>
+  <text x="1090" y="138" font-family="Arial, sans-serif" font-size="14" letter-spacing="1.6" fill="#B0A898">ACCOUNT</text>
+
+  <rect x="1084" y="154" width="266" height="48" rx="14" fill="#F2EFE9"/>
+  <text x="1110" y="184" font-family="Arial, sans-serif" font-size="18" fill="#2C2825">Shared Tasks</text>
+
+  <rect x="1084" y="210" width="266" height="48" rx="14" fill="#FFFFFF"/>
+  <text x="1110" y="240" font-family="Arial, sans-serif" font-size="18" fill="#2C2825">Task Snaps</text>
+
+  <rect x="1084" y="266" width="266" height="48" rx="14" fill="#FFFFFF"/>
+  <text x="1110" y="296" font-family="Arial, sans-serif" font-size="18" fill="#2C2825">Earn</text>
+
+  <line x1="1084" y1="334.5" x2="1350" y2="334.5" stroke="#E5E0D8"/>
+
+  <rect x="1084" y="350" width="266" height="48" rx="14" fill="#EBF2EC"/>
+  <text x="1110" y="380" font-family="Arial, sans-serif" font-size="18" fill="#4A6B50">Admin Panel</text>
+
+  <rect x="1084" y="406" width="266" height="48" rx="14" fill="#FFFFFF"/>
+  <text x="1110" y="436" font-family="Arial, sans-serif" font-size="18" fill="#7A7168">Sign out</text>
+
+  <rect x="176" y="150" width="820" height="610" rx="28" fill="#FFFFFF" stroke="#E5E0D8"/>
+  <text x="224" y="232" font-family="Georgia, serif" font-size="48" fill="#2C2825">Desktop Variation</text>
+  <text x="224" y="288" font-family="Arial, sans-serif" font-size="28" fill="#7A7168">Use the whole dashboard chip as the trigger, with a chevron instead of a separate dots button.</text>
+
+  <rect x="224" y="350" width="714" height="148" rx="22" fill="#F7F5F2" stroke="#E5E0D8"/>
+  <text x="256" y="394" font-family="Arial, sans-serif" font-size="16" letter-spacing="2" fill="#B0A898">WHY THIS FEELS CALMER</text>
+  <text x="256" y="440" font-family="Arial, sans-serif" font-size="24" fill="#2C2825">One visible account control instead of two competing buttons.</text>
+  <text x="256" y="474" font-family="Arial, sans-serif" font-size="24" fill="#2C2825">Dashboard remains obvious because the trigger still looks like Dashboard.</text>
+
+  <rect x="224" y="538" width="286" height="64" rx="20" fill="#FFFFFF" stroke="#E5E0D8"/>
+  <text x="367" y="578" text-anchor="middle" font-family="Arial, sans-serif" font-size="22" fill="#7A7168">Current</text>
+  <line x1="542" y1="570" x2="620" y2="570" stroke="#B0A898" stroke-width="3" stroke-linecap="round"/>
+  <rect x="652" y="538" width="286" height="64" rx="20" fill="#EBF2EC" stroke="#6B8F71"/>
+  <text x="795" y="578" text-anchor="middle" font-family="Arial, sans-serif" font-size="22" fill="#4A6B50">Recommended</text>
+
+  <defs>
+    <linearGradient id="avatar" x1="1101" y1="32" x2="1135" y2="66" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#6B8F71"/>
+      <stop offset="1" stop-color="#89A98E"/>
+    </linearGradient>
+  </defs>
+</svg>

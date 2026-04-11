@@ -1,0 +1,46 @@
+<svg width="900" height="1600" viewBox="0 0 900 1600" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="900" height="1600" fill="#F7F5F2"/>
+  <rect x="0" y="0" width="900" height="112" fill="#FFFFFF"/>
+  <line x1="0" y1="112.5" x2="900" y2="112.5" stroke="#E5E0D8"/>
+
+  <circle cx="54" cy="56" r="18" fill="#6B8F71"/>
+  <text x="54" y="63" text-anchor="middle" font-family="Georgia, serif" font-size="24" fill="white">◎</text>
+  <text x="88" y="66" font-family="Georgia, serif" font-size="36" fill="#2C2825">Focus<tspan fill="#6B8F71" font-style="italic">Step</tspan></text>
+
+  <rect x="534" y="28" width="274" height="56" rx="28" fill="#FFFFFF" stroke="#E5E0D8"/>
+  <circle cx="568" cy="56" r="18" fill="url(#avatarMobile)"/>
+  <text x="568" y="62" text-anchor="middle" font-family="Arial, sans-serif" font-size="16" font-weight="700" fill="white">R</text>
+  <text x="604" y="49" font-family="Arial, sans-serif" font-size="12" letter-spacing="1.2" fill="#B0A898">DASHBOARD</text>
+  <text x="604" y="69" font-family="Arial, sans-serif" font-size="17" fill="#2C2825">raven</text>
+  <path d="M774 49L786 61L798 49" stroke="#7A7168" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+
+  <rect x="28" y="144" width="844" height="288" rx="28" fill="#FFFFFF" stroke="#E5E0D8"/>
+  <text x="64" y="202" font-family="Georgia, serif" font-size="46" fill="#2C2825">Mobile Menu</text>
+  <text x="64" y="258" font-family="Arial, sans-serif" font-size="28" fill="#7A7168">On phones, tapping Dashboard opens a bottom sheet instead of a tiny dropdown.</text>
+
+  <rect x="0" y="920" width="900" height="680" rx="36" fill="#FFFFFF" stroke="#E5E0D8"/>
+  <rect x="390" y="942" width="120" height="8" rx="4" fill="#D4CFC8"/>
+  <text x="64" y="1028" font-family="Arial, sans-serif" font-size="14" letter-spacing="2" fill="#B0A898">ACCOUNT</text>
+
+  <rect x="52" y="1066" width="796" height="74" rx="20" fill="#F2EFE9"/>
+  <text x="92" y="1112" font-family="Arial, sans-serif" font-size="28" fill="#2C2825">Shared Tasks</text>
+
+  <rect x="52" y="1154" width="796" height="74" rx="20" fill="#FFFFFF" stroke="#E5E0D8"/>
+  <text x="92" y="1200" font-family="Arial, sans-serif" font-size="28" fill="#2C2825">Task Snaps</text>
+
+  <rect x="52" y="1242" width="796" height="74" rx="20" fill="#FFFFFF" stroke="#E5E0D8"/>
+  <text x="92" y="1288" font-family="Arial, sans-serif" font-size="28" fill="#2C2825">Earn</text>
+
+  <rect x="52" y="1330" width="796" height="74" rx="20" fill="#EBF2EC"/>
+  <text x="92" y="1376" font-family="Arial, sans-serif" font-size="28" fill="#4A6B50">Admin Panel</text>
+
+  <rect x="52" y="1418" width="796" height="74" rx="20" fill="#FFFFFF" stroke="#E5E0D8"/>
+  <text x="92" y="1464" font-family="Arial, sans-serif" font-size="28" fill="#7A7168">Sign out</text>
+
+  <defs>
+    <linearGradient id="avatarMobile" x1="550" y1="38" x2="586" y2="74" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#6B8F71"/>
+      <stop offset="1" stop-color="#89A98E"/>
+    </linearGradient>
+  </defs>
+</svg>

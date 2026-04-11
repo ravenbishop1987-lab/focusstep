@@ -1,0 +1,20 @@
+services:
+  - type: web
+    name: focusstep-bodydouble
+    runtime: node
+    rootDir: bodydouble
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    envVars:
+      - key: TRANSLATE_SERVICE_URL
+        fromService:
+          type: web
+          name: focusstep-translator-api
+          property: hostport
+
+  - type: web
+    name: focusstep-translator-api
+    runtime: node
+    rootDir: tasktranslator/backend
+    buildCommand: npm install
+    startCommand: npm start

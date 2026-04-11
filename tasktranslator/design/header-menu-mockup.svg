@@ -1,0 +1,64 @@
+<svg width="1600" height="900" viewBox="0 0 1600 900" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1600" height="900" fill="#F7F5F2"/>
+  <rect x="0" y="0" width="1600" height="96" fill="#FFFFFF"/>
+  <line x1="0" y1="96.5" x2="1600" y2="96.5" stroke="#E5E0D8"/>
+
+  <circle cx="88" cy="48" r="16" fill="#6B8F71"/>
+  <text x="88" y="54" text-anchor="middle" font-family="Georgia, serif" font-size="22" fill="white">◎</text>
+  <text x="120" y="57" font-family="Georgia, serif" font-size="34" fill="#2C2825">Focus<tspan fill="#6B8F71" font-style="italic">Step</tspan></text>
+
+  <rect x="635" y="26" width="96" height="42" rx="21" fill="#EBF2EC"/>
+  <text x="683" y="52" text-anchor="middle" font-family="Arial, sans-serif" font-size="18" fill="#4A6B50">Translate</text>
+
+  <rect x="747" y="26" width="88" height="42" rx="21" fill="#FFFFFF" stroke="#E5E0D8"/>
+  <text x="791" y="52" text-anchor="middle" font-family="Arial, sans-serif" font-size="18" fill="#7A7168">Pricing</text>
+
+  <rect x="1140" y="23" width="174" height="50" rx="25" fill="#FFFFFF" stroke="#E5E0D8"/>
+  <circle cx="1168" cy="48" r="17" fill="url(#avatar)"/>
+  <text x="1168" y="54" text-anchor="middle" font-family="Arial, sans-serif" font-size="16" font-weight="700" fill="white">R</text>
+  <text x="1200" y="43" font-family="Arial, sans-serif" font-size="12" letter-spacing="1.2" fill="#B0A898">DASHBOARD</text>
+  <text x="1200" y="60" font-family="Arial, sans-serif" font-size="16" fill="#2C2825">raven</text>
+
+  <rect x="1328" y="23" width="56" height="50" rx="25" fill="#FFFFFF" stroke="#E5E0D8"/>
+  <circle cx="1349" cy="48" r="2.5" fill="#7A7168"/>
+  <circle cx="1356" cy="48" r="2.5" fill="#7A7168"/>
+  <circle cx="1363" cy="48" r="2.5" fill="#7A7168"/>
+
+  <rect x="1178" y="106" width="270" height="330" rx="20" fill="#FFFFFF" stroke="#E5E0D8"/>
+  <rect x="1196" y="124" width="234" height="44" rx="12" fill="#F2EFE9"/>
+  <text x="1220" y="152" font-family="Arial, sans-serif" font-size="18" fill="#2C2825">Shared Tasks</text>
+
+  <rect x="1196" y="176" width="234" height="44" rx="12" fill="#FFFFFF"/>
+  <text x="1220" y="204" font-family="Arial, sans-serif" font-size="18" fill="#2C2825">Task Snaps</text>
+
+  <rect x="1196" y="228" width="234" height="44" rx="12" fill="#FFFFFF"/>
+  <text x="1220" y="256" font-family="Arial, sans-serif" font-size="18" fill="#2C2825">Earn</text>
+
+  <line x1="1196" y1="292.5" x2="1430" y2="292.5" stroke="#E5E0D8"/>
+
+  <rect x="1196" y="308" width="234" height="44" rx="12" fill="#EBF2EC"/>
+  <text x="1220" y="336" font-family="Arial, sans-serif" font-size="18" fill="#4A6B50">Admin Panel</text>
+
+  <rect x="1196" y="360" width="234" height="44" rx="12" fill="#FFFFFF"/>
+  <text x="1220" y="388" font-family="Arial, sans-serif" font-size="18" fill="#7A7168">Sign out</text>
+
+  <rect x="190" y="170" width="940" height="600" rx="28" fill="#FFFFFF" stroke="#E5E0D8"/>
+  <text x="240" y="255" font-family="Georgia, serif" font-size="58" fill="#2C2825">Turn a messy task into</text>
+  <text x="240" y="320" font-family="Georgia, serif" font-size="58" fill="#2C2825">the <tspan fill="#6B8F71" font-style="italic">next small step</tspan></text>
+  <text x="240" y="378" font-family="Arial, sans-serif" font-size="28" fill="#7A7168">Dashboard stays obvious. Everything else lives in a tidy overflow menu.</text>
+
+  <rect x="240" y="440" width="670" height="190" rx="24" fill="#F7F5F2" stroke="#E5E0D8"/>
+  <text x="272" y="485" font-family="Arial, sans-serif" font-size="16" letter-spacing="2" fill="#B0A898">YOUR TASK</text>
+  <text x="272" y="548" font-family="Arial, sans-serif" font-size="28" fill="#7A7168">“I need to call my landlord, email my boss, and</text>
+  <text x="272" y="588" font-family="Arial, sans-serif" font-size="28" fill="#7A7168">figure out groceries but I’m overwhelmed.”</text>
+
+  <rect x="240" y="662" width="180" height="56" rx="18" fill="#6B8F71"/>
+  <text x="330" y="697" text-anchor="middle" font-family="Arial, sans-serif" font-size="24" font-weight="700" fill="white">Translate</text>
+
+  <defs>
+    <linearGradient id="avatar" x1="1151" y1="32" x2="1185" y2="66" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#6B8F71"/>
+      <stop offset="1" stop-color="#89A98E"/>
+    </linearGradient>
+  </defs>
+</svg>

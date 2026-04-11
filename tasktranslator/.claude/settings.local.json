@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(tail -50 \"/media/ravenbishop1987/COMFYUI/focusstep \\(copy\\)/frontend/src/admin/admin.css\")",
+      "Bash(tail -5 \"/media/ravenbishop1987/COMFYUI/focusstep \\(copy\\)/frontend/src/App.css\")",
+      "Read(//media/ravenbishop1987/COMFYUI/focusstep/**)"
+    ]
+  }
+}

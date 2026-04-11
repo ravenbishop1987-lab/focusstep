@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ADHD Reddit Communities — FocusStep Marketing</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0f1117;
+    --surface: #1a1d27;
+    --surface2: #22263a;
+    --border: #2e3347;
+    --text: #e8eaf2;
+    --muted: #8b90a8;
+    --accent: #6c7fff;
+    --accent2: #a78bfa;
+    --green: #4ade80;
+    --yellow: #fbbf24;
+    --orange: #fb923c;
+    --red: #f87171;
+    --blue: #60a5fa;
+  }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    font-size: 14px;
+    line-height: 1.6;
+  }
+
+  .header {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 32px;
+    text-align: center;
+  }
+  .header h1 { font-size: 1.5rem; font-weight: 800; letter-spacing: -0.5px; margin-bottom: 6px; }
+  .header p { color: var(--muted); font-size: 0.85rem; }
+  .header .tip {
+    display: inline-block;
+    margin-top: 14px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 8px 16px;
+    font-size: 0.78rem;
+    color: var(--muted);
+  }
+  .header .tip strong { color: var(--accent2); }
+
+  .container { max-width: 860px; margin: 0 auto; padding: 32px 24px 60px; }
+
+  .section { margin-bottom: 36px; }
+  .section-header {
+    display: flex; align-items: center; gap: 10px;
+    margin-bottom: 14px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--border);
+  }
+  .section-header h2 { font-size: 0.95rem; font-weight: 700; }
+  .section-header .desc { font-size: 0.78rem; color: var(--muted); margin-left: auto; }
+
+  .priority-badge {
+    font-size: 0.62rem; font-weight: 700; padding: 2px 7px;
+    border-radius: 4px; text-transform: uppercase; letter-spacing: 0.5px;
+  }
+  .p1 { background: #052e16; color: var(--green); }
+  .p2 { background: #3b2700; color: var(--yellow); }
+  .p3 { background: #1e1b4b; color: var(--accent2); }
+  .skip { background: #1f1f1f; color: #555; }
+
+  .sub-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 10px;
+  }
+
+  .sub-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px 16px;
+    text-decoration: none;
+    color: var(--text);
+    display: block;
+    transition: border-color 0.15s, background 0.15s;
+  }
+  .sub-card:hover { border-color: var(--accent); background: var(--surface2); }
+
+  .sub-card .name {
+    font-weight: 700;
+    font-size: 0.88rem;
+    color: var(--accent);
+    margin-bottom: 4px;
+  }
+  .sub-card .members {
+    font-size: 0.72rem;
+    color: var(--muted);
+    margin-bottom: 6px;
+  }
+  .sub-card .why {
+    font-size: 0.78rem;
+    color: var(--muted);
+    line-height: 1.55;
+  }
+  .sub-card .why strong { color: var(--text); }
+
+  .strategy-box {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--accent2);
+    border-radius: 10px;
+    padding: 18px 20px;
+    margin-bottom: 36px;
+  }
+  .strategy-box h3 { font-size: 0.88rem; font-weight: 700; color: var(--accent2); margin-bottom: 10px; }
+  .strategy-box ol { padding-left: 18px; }
+  .strategy-box li { font-size: 0.82rem; color: var(--muted); margin-bottom: 8px; line-height: 1.6; }
+  .strategy-box li strong { color: var(--text); }
+
+  .post-template {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--green);
+    border-radius: 10px;
+    padding: 18px 20px;
+    margin-bottom: 36px;
+  }
+  .post-template h3 { font-size: 0.88rem; font-weight: 700; color: var(--green); margin-bottom: 10px; }
+  .post-template .template-text {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 12px 14px;
+    font-size: 0.8rem;
+    color: #c4c9e0;
+    line-height: 1.7;
+    white-space: pre-wrap;
+    position: relative;
+  }
+  .copy-btn {
+    position: absolute; top: 8px; right: 8px;
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 5px; color: var(--muted); font-size: 0.68rem;
+    padding: 3px 8px; cursor: pointer; transition: all 0.15s;
+  }
+  .copy-btn:hover { background: var(--accent); color: white; border-color: var(--accent); }
+  .copy-btn.copied { background: var(--green); color: #000; border-color: var(--green); }
+
+  .rules-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-bottom: 36px;
+  }
+  .rule-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px 16px;
+  }
+  .rule-card.do { border-left: 3px solid var(--green); }
+  .rule-card.dont { border-left: 3px solid var(--red); }
+  .rule-card h4 { font-size: 0.78rem; font-weight: 700; margin-bottom: 8px; }
+  .rule-card.do h4 { color: var(--green); }
+  .rule-card.dont h4 { color: var(--red); }
+  .rule-card ul { padding-left: 16px; }
+  .rule-card li { font-size: 0.78rem; color: var(--muted); margin-bottom: 5px; line-height: 1.5; }
+
+  @media print {
+    body { background: white; color: #111; }
+    .header { background: #f5f5f5; border-color: #ddd; }
+    .sub-card { border-color: #ddd; background: white; }
+    .sub-card .name { color: #4f46e5; }
+    .sub-card .members, .sub-card .why { color: #555; }
+    .strategy-box, .post-template, .rule-card { background: white; border-color: #ddd; }
+    .template-text { background: #f9f9f9; color: #333; }
+    .copy-btn { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>ADHD Reddit Communities</h1>
+  <p>FocusStep marketing targets — ranked by priority</p>
+  <div class="tip"><strong>To save as PDF:</strong> File → Print → Save as PDF &nbsp;·&nbsp; All links stay clickable</div>
+</div>
+
+<div class="container">
+
+  <!-- STRATEGY -->
+  <div class="strategy-box">
+    <h3>📋 The Playbook</h3>
+    <ol>
+      <li><strong>Build karma first (1–2 weeks).</strong> Comment genuinely on posts in r/ADHD. Help people. Don't mention your product at all.</li>
+      <li><strong>Post your origin story.</strong> "I built this because I kept getting stuck starting tasks" — not "check out my SaaS". Show a screen recording of the before/after.</li>
+      <li><strong>Let the profile do the work.</strong> Curious people click your username, see your post, try FocusStep. Never drop your link unsolicited in someone else's thread.</li>
+      <li><strong>One real fan &gt; 100 ads.</strong> When someone says "this helped me" publicly, that thread does more than any campaign.</li>
+    </ol>
+  </div>
+
+  <!-- DO / DON'T -->
+  <div class="rules-grid">
+    <div class="rule-card do">
+      <h4>✓ DO</h4>
+      <ul>
+        <li>Read each sub's rules before posting</li>
+        <li>Frame posts as personal experience</li>
+        <li>Respond to every comment on your post</li>
+        <li>Post a screen recording, not just a link</li>
+        <li>Mention you have ADHD yourself if true</li>
+        <li>Give the tool away free to early commenters</li>
+      </ul>
+    </div>
+    <div class="rule-card dont">
+      <h4>✗ DON'T</h4>
+      <ul>
+        <li>Drop your URL in someone else's thread</li>
+        <li>Post the same thing in 5 subs on the same day</li>
+        <li>Use marketing language ("powerful", "game-changing")</li>
+        <li>Post before you have karma in that sub</li>
+        <li>Ignore comments or only reply to positive ones</li>
+        <li>Create a new account just for promotion</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- POST TEMPLATE -->
+  <div class="post-template">
+    <h3>📝 Sample Post (adapt this — don't copy word for word)</h3>
+    <div class="template-text">Title: I kept getting paralyzed before starting tasks so I built something that helps me
+
+I have ADHD and the hardest part for me isn't doing tasks — it's starting them. My brain just goes blank when I look at something like "do my taxes" or "clean the bathroom".
+
+I built a small tool that breaks any task down into 3-5 very specific steps. Not "gather your documents" — more like "open the drawer on the left side of your desk and take out the green folder". The kind of detail that actually unsticks me.
+
+[screen recording here]
+
+It's free to try if anyone wants to — happy to share the link in comments. Just wanted to share in case it helps anyone else who gets stuck the same way.
+      <button class="copy-btn" onclick="copyText(this)">Copy</button>
+    </div>
+  </div>
+
+  <!-- PRIORITY 1 -->
+  <div class="section">
+    <div class="section-header">
+      <span class="priority-badge p1">Start Here</span>
+      <h2>Core ADHD Communities</h2>
+      <span class="desc">Highest ROI — start with these 5</span>
+    </div>
+    <div class="sub-grid">
+      <a class="sub-card" href="https://reddit.com/r/ADHD" target="_blank">
+        <div class="name">r/ADHD</div>
+        <div class="members">~1.5M members</div>
+        <div class="why">The main one. Most active, most reach. Task paralysis posts appear daily — your tool is a direct answer to the most common complaint.</div>
+      </a>
+      <a class="sub-card" href="https://reddit.com/r/ADHDwomen" target="_blank">
+        <div class="name">r/ADHDwomen</div>
+        <div class="members">~200K members</div>
+        <div class="why">Highly engaged, supportive community. Women with ADHD are often late-diagnosed and actively seeking coping tools.</div>
+      </a>
+      <a class="sub-card" href="https://reddit.com/r/AuDHD" target="_blank">
+        <div class="name">r/AuDHD</div>
+        <div class="members">~100K+ members</div>
+        <div class="why">Autism + ADHD overlap. Extremely active, very task-paralysis focused. One of the fastest growing neurodivergent subs.</div>
+      </a>
+      <a class="sub-card" href="https://reddit.com/r/adhdmeme" target="_blank">
+        <div class="name">r/adhdmeme</div>
+        <div class="members">~100K+ members</div>
+        <div class="why">Great for before/after demo content. A funny or relatable post showing task breakdown can spread fast here.</div>
+      </a>
+      <a class="sub-card" href="https://reddit.com/r/ADHD_Programmers" target="_blank">
+        <div class="name">r/ADHD_Programmers</div>
+        <div class="members">~50K members</div>
+        <div class="why">Tech-savvy, higher income, more likely to pay for tools. Dev tasks like "refactor this codebase" work great as demo inputs.</div>
+      </a>
+    </div>
+  </div>
+
+  <!-- PRIORITY 2 -->
+  <div class="section">
+    <div class="section-header">
+      <span class="priority-badge p2">Second Wave</span>
+      <h2>High-Intent Niche Communities</h2>
+      <span class="desc">Already in "looking for tools" mode</span>
+    </div>
+    <div class="sub-grid">
+      <a class="sub-card" href="https://reddit.com/r/executivedysfunction" target="_blank">
+        <div class="name">r/executivedysfunction</div>
+        <div class="members">Niche</div>
+        <div class="why"><strong>Most targeted sub on this list.</strong> Executive dysfunction is literally what FocusStep solves. Small but perfectly relevant.</div>
+      </a>
+      <a class="sub-card" href="https://reddit.com/r/ADHD_Productivity" target="_blank">
+        <div class="name">r/ADHD_Productivity</div>
+        <div class="members">Niche</div>
+        <div class="why">People specifically looking for productivity tools that work with ADHD brains, not against them.</div>
+      </a>
+      <a class="sub-card" href="https://reddit.com/r/BodyDoubling" target="_blank">
+        <div class="name">r/BodyDoubling</div>
+        <div class="members">Niche</div>
+        <div class="why">Already using accountability tools. FocusStep pairs naturally with body doubling — use it to figure out what to do, then body double to do it.</div>
+      </a>
+      <a class="sub-card" href="https://reddit.com/r/ADHD_LatelyDiagnosed" target="_blank">
+        <div class="name">r/ADHD_LatelyDiagnosed</div>
+        <div class="members">Niche</div>
+        <div class="why">Newly diagnosed adults actively building their toolkit. High motivation to try new coping strategies.</div>
+      </a>
+      <a class="sub-card" href="https://reddit.com/r/ADHDsupport" target="_blank">
+        <div class="name">r/ADHDsupport</div>
+        <div class="members">Small</div>
+        <div class="why">More support-focused than the main sub. People sharing struggles are directly experiencing the problem FocusStep solves.</div>
+      </a>
+      <a class="sub-card" href="https://reddit.com/r/ADHD_college" target="_blank">
+        <div class="name">r/ADHD_college</div>
+        <div class="members">~20K members</div>
+        <div class="why">Students with ADHD struggling with assignments and starting tasks. "Write my essay" is a perfect FocusStep demo input.</div>
+      </a>
+    </div>
+  </div>
+
+  <!-- PRIORITY 3 -->
+  <div class="section">
+    <div class="section-header">
+      <span class="priority-badge p3">Wider Net</span>
+      <h2>Productivity Subs with Heavy ADHD Presence</h2>
+      <span class="desc">Not ADHD-specific but large audiences overlap</span>
+    </div>
+    <div class="sub-grid">
+      <a class="sub-card" href="https://reddit.com/r/getdisciplined" target="_blank">
+        <div class="name">r/getdisciplined</div>
+        <div class="members">~1M members</div>
+        <div class="why">Huge community built around overcoming the exact problem FocusStep addresses. Don't frame it as an ADHD tool here — frame it as a task starter.</div>
+      </a>
+      <a class="sub-card" href="https://reddit.com/r/productivity" target="_blank">
+        <div class="name">r/productivity</div>
+        <div class="members">~2M members</div>
+        <div class="why">Large but noisy. Only post here after you've had success elsewhere — competition for attention is high.</div>
+      </a>
+      <a class="sub-card" href="https://reddit.com/r/decidingtobebetter" target="_blank">
+        <div class="name">r/decidingtobebetter</div>
+        <div class="members">~300K members</div>
+        <div class="why">Self-accountability community. Many undiagnosed ADHD users here who relate to "I know what to do but can't start."</div>
+      </a>
+      <a class="sub-card" href="https://reddit.com/r/selfimprovement" target="_blank">
+        <div class="name">r/selfimprovement</div>
+        <div class="members">~1M members</div>
+        <div class="why">Broad but active. Works best if your post angle is about overcoming procrastination rather than ADHD specifically.</div>
+      </a>
+      <a class="sub-card" href="https://reddit.com/r/neurodiversity" target="_blank">
+        <div class="name">r/neurodiversity</div>
+        <div class="members">~100K members</div>
+        <div class="why">Broad neurodivergent community. Good for visibility with audiences who share your values around accessible, shame-free tools.</div>
+      </a>
+      <a class="sub-card" href="https://reddit.com/r/studywithme" target="_blank">
+        <div class="name">r/studywithme</div>
+        <div class="members">Growing</div>
+        <div class="why">Virtual co-studying community. Heavy ADHD presence — people here already use tools to get started. Natural fit.</div>
+      </a>
+    </div>
+  </div>
+
+  <!-- SKIP -->
+  <div class="section">
+    <div class="section-header">
+      <span class="priority-badge skip">Skip For Now</span>
+      <h2>Lower Priority</h2>
+      <span class="desc">Wrong demographic or context for a paid tool</span>
+    </div>
+    <div class="sub-grid">
+      <a class="sub-card" href="https://reddit.com/r/ADHDparenting" target="_blank">
+        <div class="name">r/ADHDparenting</div>
+        <div class="members">~30K</div>
+        <div class="why">Focused on helping kids, not the parent's own productivity. Wrong buying context.</div>
+      </a>
+      <a class="sub-card" href="https://reddit.com/r/adhdteens" target="_blank">
+        <div class="name">r/adhdteens</div>
+        <div class="members">~30K</div>
+        <div class="why">Younger audience, unlikely to pay. Come back if you add a student/free tier focus.</div>
+      </a>
+      <a class="sub-card" href="https://reddit.com/r/adderall" target="_blank">
+        <div class="name">r/adderall</div>
+        <div class="members">Large</div>
+        <div class="why">Medication context — wrong place to promote a productivity tool. Feels tone-deaf.</div>
+      </a>
+      <a class="sub-card" href="https://reddit.com/r/ADHD_partners" target="_blank">
+        <div class="name">r/ADHD_partners</div>
+        <div class="members">~20K</div>
+        <div class="why">Partners of people with ADHD. Could work later but not the right primary audience.</div>
+      </a>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  function copyText(btn) {
+    const box = btn.parentElement;
+    const text = box.textContent.replace('Copy', '').replace('Copied!', '').trim();
+    navigator.clipboard.writeText(text).then(() => {
+      btn.textContent = 'Copied!';
+      btn.classList.add('copied');
+      setTimeout(() => { btn.textContent = 'Copy'; btn.classList.remove('copied'); }, 2000);
+    });
+  }
+</script>
+</body>
+</html>

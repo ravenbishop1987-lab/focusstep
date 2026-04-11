@@ -1,0 +1,1119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FocusStep — Codebase Audit Report</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0f1117;
+    --surface: #1a1d27;
+    --surface2: #22263a;
+    --border: #2e3347;
+    --text: #e8eaf2;
+    --muted: #8b90a8;
+    --accent: #6c7fff;
+    --accent2: #a78bfa;
+    --green: #4ade80;
+    --yellow: #fbbf24;
+    --red: #f87171;
+    --orange: #fb923c;
+    --blue: #60a5fa;
+  }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+    font-size: 14px;
+  }
+
+  .header {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 24px 32px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+  }
+  .header-left h1 { font-size: 1.2rem; font-weight: 700; letter-spacing: -0.3px; }
+  .header-left p { font-size: 0.78rem; color: var(--muted); margin-top: 2px; }
+  .progress-label { font-size: 0.75rem; color: var(--muted); text-align: right; }
+  .progress-label strong { display: block; font-size: 1rem; color: var(--green); }
+
+  .container { max-width: 900px; margin: 0 auto; padding: 32px 24px 80px; }
+
+  .score-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+    gap: 12px;
+    margin-bottom: 32px;
+  }
+  .score-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px;
+    text-align: center;
+  }
+  .score-card .num { font-size: 2rem; font-weight: 800; line-height: 1; }
+  .score-card .label { font-size: 0.72rem; color: var(--muted); margin-top: 4px; text-transform: uppercase; letter-spacing: 0.5px; }
+  .score-card.red .num { color: var(--red); }
+  .score-card.orange .num { color: var(--orange); }
+  .score-card.yellow .num { color: var(--yellow); }
+  .score-card.green .num { color: var(--green); }
+  .score-card.blue .num { color: var(--blue); }
+
+  .section { margin-bottom: 40px; }
+  .section-title {
+    font-size: 1rem; font-weight: 700; margin-bottom: 14px;
+    display: flex; align-items: center; gap: 10px; letter-spacing: -0.2px;
+  }
+  .section-title .count {
+    margin-left: auto; font-size: 0.72rem; color: var(--muted);
+    background: var(--surface2); padding: 2px 8px; border-radius: 20px; font-weight: 500;
+  }
+
+  .issue-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 10px; margin-bottom: 10px; overflow: hidden;
+  }
+  .issue-card.done { opacity: 0.4; }
+
+  .issue-header {
+    display: flex; align-items: flex-start; gap: 12px;
+    padding: 14px 16px; cursor: pointer; user-select: none;
+  }
+  .issue-header:hover { background: rgba(255,255,255,0.02); }
+
+  .issue-check {
+    width: 18px; height: 18px; border: 2px solid var(--border);
+    border-radius: 4px; flex-shrink: 0; margin-top: 2px; cursor: pointer;
+    display: flex; align-items: center; justify-content: center; transition: all 0.15s;
+  }
+  .issue-check.checked { background: var(--green); border-color: var(--green); }
+  .issue-check.checked::after { content: '✓'; font-size: 11px; color: #000; font-weight: 800; }
+
+  .issue-meta { flex: 1; min-width: 0; }
+  .issue-title { font-weight: 600; font-size: 0.88rem; }
+  .issue-sub { font-size: 0.76rem; color: var(--muted); margin-top: 3px; }
+
+  .badge {
+    font-size: 0.65rem; font-weight: 700; padding: 2px 7px; border-radius: 4px;
+    text-transform: uppercase; letter-spacing: 0.4px; white-space: nowrap; flex-shrink: 0;
+  }
+  .badge.blocking { background: #7f1d1d; color: var(--red); }
+  .badge.critical { background: #7f1d1d; color: #fca5a5; }
+  .badge.high { background: #431407; color: var(--orange); }
+  .badge.medium { background: #3b2700; color: var(--yellow); }
+  .badge.low { background: #1a2700; color: #a3e635; }
+
+  .chevron { color: var(--muted); font-size: 0.7rem; flex-shrink: 0; margin-top: 4px; transition: transform 0.2s; }
+  .issue-card.open .chevron { transform: rotate(90deg); }
+
+  .issue-body {
+    display: none; padding: 14px 16px 16px 46px;
+    border-top: 1px solid var(--border);
+  }
+  .issue-card.open .issue-body { display: block; }
+  .issue-desc { font-size: 0.82rem; color: var(--muted); margin-bottom: 12px; line-height: 1.65; }
+
+  .code-block {
+    background: var(--bg); border: 1px solid var(--border); border-radius: 6px;
+    padding: 10px 12px; font-family: 'SF Mono', 'Fira Code', monospace;
+    font-size: 0.75rem; color: #c4c9e0; overflow-x: auto; margin-bottom: 12px;
+    white-space: pre; line-height: 1.6;
+  }
+  .file-ref {
+    display: inline-block; font-family: monospace; font-size: 0.72rem;
+    background: var(--surface2); border: 1px solid var(--border); border-radius: 4px;
+    padding: 1px 6px; color: var(--blue); margin-bottom: 10px;
+  }
+
+  .fix-prompt-wrap { margin-top: 12px; }
+  .fix-prompt-label { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.5px; color: var(--muted); margin-bottom: 6px; }
+  .fix-prompt-box {
+    background: #0d1f0d; border: 1px solid #1d3a1d; border-radius: 6px;
+    padding: 10px 40px 10px 12px; font-size: 0.79rem; color: #86efac;
+    line-height: 1.6; position: relative;
+  }
+  .copy-btn {
+    position: absolute; top: 8px; right: 8px;
+    background: var(--surface2); border: 1px solid var(--border); border-radius: 5px;
+    color: var(--muted); font-size: 0.68rem; padding: 3px 8px; cursor: pointer; transition: all 0.15s;
+  }
+  .copy-btn:hover { background: var(--accent); color: white; border-color: var(--accent); }
+  .copy-btn.copied { background: var(--green); color: #000; border-color: var(--green); }
+
+  .good-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-left: 3px solid var(--green); border-radius: 10px;
+    padding: 14px 16px; margin-bottom: 10px;
+  }
+  .good-title { font-weight: 600; font-size: 0.88rem; margin-bottom: 4px; color: var(--green); }
+  .good-desc { font-size: 0.81rem; color: var(--muted); line-height: 1.6; }
+
+  .feature-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-left: 3px solid var(--accent2); border-radius: 10px;
+    padding: 14px 16px; margin-bottom: 10px;
+  }
+  .feature-title { font-weight: 600; font-size: 0.88rem; margin-bottom: 4px; color: var(--accent2); }
+  .feature-desc { font-size: 0.81rem; color: var(--muted); line-height: 1.6; margin-bottom: 10px; }
+  .feature-prompt-box {
+    background: #1e1b4b; border: 1px solid #3730a3; border-radius: 6px;
+    padding: 10px 40px 10px 12px; font-size: 0.79rem; color: #c4b5fd;
+    line-height: 1.6; position: relative;
+  }
+
+  .progress-bar-wrap { margin: 0 0 32px; }
+  .progress-bar-label { display: flex; justify-content: space-between; font-size: 0.75rem; color: var(--muted); margin-bottom: 6px; }
+  .progress-bar-track { height: 6px; background: var(--surface2); border-radius: 3px; overflow: hidden; }
+  .progress-bar-fill { height: 100%; background: linear-gradient(90deg, var(--accent), var(--accent2)); border-radius: 3px; transition: width 0.4s ease; }
+
+  .divider { height: 1px; background: var(--border); margin: 32px 0; }
+
+  .sticky-footer {
+    position: fixed; bottom: 0; left: 0; right: 0;
+    background: var(--surface); border-top: 1px solid var(--border);
+    padding: 10px 24px; display: flex; align-items: center;
+    justify-content: space-between; font-size: 0.75rem; color: var(--muted); z-index: 100;
+  }
+  .sticky-footer strong { color: var(--text); }
+
+  .toc { position: fixed; right: 24px; top: 100px; width: 150px; display: none; }
+  @media (min-width: 1200px) { .toc { display: block; } }
+  .toc-title { font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.5px; color: var(--muted); margin-bottom: 8px; }
+  .toc a {
+    display: block; font-size: 0.73rem; color: var(--muted); text-decoration: none;
+    padding: 3px 0 3px 10px; border-left: 2px solid var(--border); margin-bottom: 2px; transition: all 0.15s;
+  }
+  .toc a:hover, .toc a.active { color: var(--accent); border-left-color: var(--accent); }
+  h2 { scroll-margin-top: 80px; }
+</style>
+</head>
+<body>
+
+<div class="toc">
+  <div class="toc-title">Jump to</div>
+  <a href="#section-bugs">Bugs</a>
+  <a href="#section-security">Security</a>
+  <a href="#section-performance">Performance</a>
+  <a href="#section-ux">UX / A11y</a>
+  <a href="#section-quality">Code Quality</a>
+  <a href="#section-mobile">Mobile</a>
+  <a href="#section-seo">SEO</a>
+  <a href="#section-good">What's Good</a>
+  <a href="#section-features">Missing Features</a>
+</div>
+
+<div class="header">
+  <div class="header-left">
+    <h1>FocusStep — Codebase Audit</h1>
+    <p>March 28, 2026 &nbsp;·&nbsp; backend/server.js · frontend/src/**</p>
+  </div>
+  <div class="progress-label">
+    <strong id="done-count">0 / 38</strong>
+    issues resolved
+  </div>
+</div>
+
+<div class="container">
+
+  <div class="score-grid">
+    <div class="score-card red"><div class="num">1</div><div class="label">Blocking</div></div>
+    <div class="score-card red"><div class="num">3</div><div class="label">Critical</div></div>
+    <div class="score-card orange"><div class="num">14</div><div class="label">High</div></div>
+    <div class="score-card yellow"><div class="num">12</div><div class="label">Medium</div></div>
+    <div class="score-card green"><div class="num">8</div><div class="label">Low / Good</div></div>
+    <div class="score-card blue"><div class="num">7</div><div class="label">Features</div></div>
+  </div>
+
+  <div class="progress-bar-wrap">
+    <div class="progress-bar-label">
+      <span>Overall progress</span>
+      <span id="pct-label">0%</span>
+    </div>
+    <div class="progress-bar-track">
+      <div class="progress-bar-fill" id="progress-fill" style="width:0%"></div>
+    </div>
+  </div>
+
+  <!-- BUGS -->
+  <div class="section" id="section-bugs">
+    <h2 class="section-title">🔴 Bugs <span class="count">4 issues</span></h2>
+
+    <div class="issue-card" data-id="b1">
+      <div class="issue-header">
+        <div class="issue-check" onclick="toggleCheck(event,'b1')"></div>
+        <div class="issue-meta">
+          <div class="issue-title">StepExecution component imported but missing</div>
+          <div class="issue-sub">Translator.jsx:2 — app crashes at step execution</div>
+        </div>
+        <span class="badge blocking">Blocking</span>
+        <span class="chevron">▶</span>
+      </div>
+      <div class="issue-body">
+        <div class="file-ref">frontend/src/components/Translator.jsx:2</div>
+        <div class="issue-desc"><code>import StepExecution from "./StepExecution"</code> is at line 2 but the file doesn't exist. Any render that hits the StepExecution component will crash the whole Translator tree.</div>
+        <div class="fix-prompt-wrap">
+          <div class="fix-prompt-label">Fix prompt — copy and paste into Claude</div>
+          <div class="fix-prompt-box">In frontend/src/components/Translator.jsx there is an import for a component called StepExecution that doesn't exist. Look at where StepExecution is used in that file and either: (a) create a minimal StepExecution component that fulfils that interface, or (b) if the feature isn't ready, remove the import and all JSX references to it so the app doesn't crash. Show me what you'd do and why.<button class="copy-btn" onclick="copyPrompt(this)">Copy</button></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="issue-card" data-id="b2">
+      <div class="issue-header">
+        <div class="issue-check" onclick="toggleCheck(event,'b2')"></div>
+        <div class="issue-meta">
+          <div class="issue-title">/pro-status missing `plan` field in response</div>
+          <div class="issue-sub">server.js:465 vs App.jsx:135 — plan is always null</div>
+        </div>
+        <span class="badge high">High</span>
+        <span class="chevron">▶</span>
+      </div>
+      <div class="issue-body">
+        <div class="file-ref">backend/server.js:465</div>
+        <div class="issue-desc">The endpoint returns <code>{ isPro }</code> but App.jsx line 135 does <code>setPlan(d.plan || null)</code>. The plan badge (monthly vs lifetime) in the UI is always null. One-liner fix — add plan to the SELECT and response.</div>
+        <div class="code-block">// Fix in server.js
+const { data } = await supabase
+  .from('customers').select('is_pro, plan').eq('email', email).single();
+res.json({ isPro: data?.is_pro === true, plan: data?.plan || null });</div>
+        <div class="fix-prompt-wrap">
+          <div class="fix-prompt-label">Fix prompt</div>
+          <div class="fix-prompt-box">In backend/server.js, the GET /pro-status endpoint only returns { isPro } but App.jsx also reads d.plan from the response. Update /pro-status to also return the plan field ('monthly', 'lifetime', or null) by fetching it from the customers table in the same query.<button class="copy-btn" onclick="copyPrompt(this)">Copy</button></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="issue-card" data-id="b3">
+      <div class="issue-header">
+        <div class="issue-check" onclick="toggleCheck(event,'b3')"></div>
+        <div class="issue-meta">
+          <div class="issue-title">hashIp() called but never defined</div>
+          <div class="issue-sub">server.js analytics route — silent ReferenceError, no analytics stored</div>
+        </div>
+        <span class="badge critical">Critical</span>
+        <span class="chevron">▶</span>
+      </div>
+      <div class="issue-body">
+        <div class="file-ref">backend/server.js — /analytics/page-view</div>
+        <div class="issue-desc">The analytics route calls <code>hashIp(ip)</code> but the function is never defined. The try/catch swallows the ReferenceError silently — analytics data is never written to Supabase.</div>
+        <div class="code-block">// Add near top of server.js
+const crypto = require('crypto');
+function hashIp(ip) {
+  return crypto.createHash('sha256')
+    .update(ip + (process.env.IP_HASH_SALT || 'focusstep'))
+    .digest('hex').slice(0, 16);
+}</div>
+        <div class="fix-prompt-wrap">
+          <div class="fix-prompt-label">Fix prompt</div>
+          <div class="fix-prompt-box">In backend/server.js there is a call to hashIp(ip) in the analytics page-view route but the function is never defined. Add a hashIp function near the top of the file that uses Node's built-in crypto module to produce a short one-way hash of the IP. Use a salt from process.env.IP_HASH_SALT for privacy. This should never store raw IPs.<button class="copy-btn" onclick="copyPrompt(this)">Copy</button></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="issue-card" data-id="b4">
+      <div class="issue-header">
+        <div class="issue-check" onclick="toggleCheck(event,'b4')"></div>
+        <div class="issue-meta">
+          <div class="issue-title">Referral attach reads wrong field for user email</div>
+          <div class="issue-sub">server.js /referral/attach — referred_by never correctly set</div>
+        </div>
+        <span class="badge high">High</span>
+        <span class="chevron">▶</span>
+      </div>
+      <div class="issue-body">
+        <div class="file-ref">backend/server.js — /referral/attach</div>
+        <div class="issue-desc">The route has <code>requireAuth</code> so <code>req.authUser.email</code> is available, but the code appears to read the user email from the wrong place. The authenticated user's email must come from <code>req.authUser.email</code> — not the request body.</div>
+        <div class="fix-prompt-wrap">
+          <div class="fix-prompt-label">Fix prompt</div>
+          <div class="fix-prompt-box">In backend/server.js, find the POST /referral/attach route. It uses requireAuth so req.authUser is available. Make sure the authenticated user's email is read from req.authUser.email (not req.body), and the referral code is read from req.body. Show me the corrected route handler.<button class="copy-btn" onclick="copyPrompt(this)">Copy</button></div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- SECURITY -->
+  <div class="section" id="section-security">
+    <h2 class="section-title">🔒 Security <span class="count">5 issues</span></h2>
+
+    <div class="issue-card" data-id="s1">
+      <div class="issue-header">
+        <div class="issue-check" onclick="toggleCheck(event,'s1')"></div>
+        <div class="issue-meta">
+          <div class="issue-title">Moderation error defaults to ALLOW</div>
+          <div class="issue-sub">server.js — harmful content passes through when AI is down</div>
+        </div>
+        <span class="badge critical">Critical</span>
+        <span class="chevron">▶</span>
+      </div>
+      <div class="issue-body">
+        <div class="file-ref">backend/server.js — moderateTaskInput()</div>
+        <div class="issue-desc">If the AI moderation call throws (timeout, outage, rate limit), the catch block returns <code>{ allow: true }</code>. This means any content passes when your AI is unavailable. Fail-closed is the correct default.</div>
+        <div class="code-block">// Change the catch block in moderateTaskInput
+catch (err) {
+  console.warn('Moderation AI unavailable:', err.message);
+  return { allow: false, severity: 'low', category: 'unavailable',
+           reason: 'Moderation service unavailable.' };
+}</div>
+        <div class="fix-prompt-wrap">
+          <div class="fix-prompt-label">Fix prompt</div>
+          <div class="fix-prompt-box">In backend/server.js, the moderateTaskInput function returns allow:true when the AI call fails. Change the catch block to return allow:false with severity:'low' and reason:'Moderation unavailable — blocked as precaution.' The local hard-block regex still runs first, so only ambiguous content is affected by this change.<button class="copy-btn" onclick="copyPrompt(this)">Copy</button></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="issue-card" data-id="s2">
+      <div class="issue-header">
+        <div class="issue-check" onclick="toggleCheck(event,'s2')"></div>
+        <div class="issue-meta">
+          <div class="issue-title">No request body size limit on Express</div>
+          <div class="issue-sub">server.js — large payloads can DoS the server</div>
+        </div>
+        <span class="badge high">High</span>
+        <span class="chevron">▶</span>
+      </div>
+      <div class="issue-body">
+        <div class="file-ref">backend/server.js — express.json() middleware</div>
+        <div class="issue-desc"><code>app.use(express.json())</code> has no size cap. An attacker can POST megabytes of JSON and tie up server memory or cause an OOM crash.</div>
+        <div class="code-block">app.use(express.json({ limit: '50kb' }));</div>
+        <div class="fix-prompt-wrap">
+          <div class="fix-prompt-label">Fix prompt</div>
+          <div class="fix-prompt-box">In backend/server.js, add a body size limit of '50kb' to the express.json() middleware. The largest legitimate payload is a translate request with a 300-char task — 50kb is generous. Make this change and confirm no other payloads (like webhook) would be affected (the webhook uses express.raw() separately).<button class="copy-btn" onclick="copyPrompt(this)">Copy</button></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="issue-card" data-id="s3">
+      <div class="issue-header">
+        <div class="issue-check" onclick="toggleCheck(event,'s3')"></div>
+        <div class="issue-meta">
+          <div class="issue-title">In-memory rate limit map grows forever</div>
+          <div class="issue-sub">server.js — usageMap leaks memory on long-running servers</div>
+        </div>
+        <span class="badge high">High</span>
+        <span class="chevron">▶</span>
+      </div>
+      <div class="issue-body">
+        <div class="file-ref">backend/server.js — usageMap</div>
+        <div class="issue-desc">The usageMap is keyed by <code>ip:dateString</code>. Old date keys are never deleted — on a server running for weeks the map grows indefinitely. Add a cleanup interval.</div>
+        <div class="code-block">// Add near usageMap declaration
+setInterval(() => {
+  const today = new Date().toDateString();
+  for (const key of usageMap.keys()) {
+    if (!key.endsWith(today)) usageMap.delete(key);
+  }
+}, 60 * 60 * 1000); // hourly</div>
+        <div class="fix-prompt-wrap">
+          <div class="fix-prompt-label">Fix prompt</div>
+          <div class="fix-prompt-box">In backend/server.js, the usageMap grows forever because old date-keyed entries are never deleted. Add a setInterval that runs once per hour and removes any map entries whose key does not end with today's date string. Place it directly below the usageMap declaration.<button class="copy-btn" onclick="copyPrompt(this)">Copy</button></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="issue-card" data-id="s4">
+      <div class="issue-header">
+        <div class="issue-check" onclick="toggleCheck(event,'s4')"></div>
+        <div class="issue-meta">
+          <div class="issue-title">isAdmin computed in the browser from a public env var</div>
+          <div class="issue-sub">App.jsx — admin check can be bypassed client-side</div>
+        </div>
+        <span class="badge high">High</span>
+        <span class="chevron">▶</span>
+      </div>
+      <div class="issue-body">
+        <div class="file-ref">frontend/src/App.jsx:20-23, 62</div>
+        <div class="issue-desc"><code>VITE_ADMIN_EMAILS</code> is a public env var baked into the JS bundle — anyone can read it. The backend has its own <code>ADMIN_SECRET</code> check but admin UI routes are gated only by the client-side <code>isAdmin</code> flag. The backend protection is what matters; remove the frontend leak.</div>
+        <div class="fix-prompt-wrap">
+          <div class="fix-prompt-label">Fix prompt</div>
+          <div class="fix-prompt-box">In backend/server.js, replace the static ADMIN_SECRET header check on admin routes with a requireAdmin middleware that calls requireAuth first (validates the Supabase JWT) then checks req.authUser.email against the server-side ADMIN_EMAILS env var. Remove VITE_ADMIN_EMAILS from the frontend — instead have the /pro-status endpoint also return an isAdmin boolean based on the server-side check.<button class="copy-btn" onclick="copyPrompt(this)">Copy</button></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="issue-card" data-id="s5">
+      <div class="issue-header">
+        <div class="issue-check" onclick="toggleCheck(event,'s5')"></div>
+        <div class="issue-meta">
+          <div class="issue-title">Raw user emails stored in analytics table</div>
+          <div class="issue-sub">server.js — GDPR/CCPA concern with user_email in page_analytics_events</div>
+        </div>
+        <span class="badge medium">Medium</span>
+        <span class="chevron">▶</span>
+      </div>
+      <div class="issue-body">
+        <div class="file-ref">backend/server.js — /analytics/page-view</div>
+        <div class="issue-desc">The analytics route stores <code>user_email</code> as plain text. You already have email in the customers table — analytics shouldn't need raw PII. Store a hashed version instead.</div>
+        <div class="fix-prompt-wrap">
+          <div class="fix-prompt-label">Fix prompt</div>
+          <div class="fix-prompt-box">In backend/server.js, the /analytics/page-view route stores user_email in plain text in page_analytics_events. Replace user_email with a one-way SHA-256 hash of the email (using the same hashIp approach with a salt) so the analytics table contains no raw PII. Update any admin SELECT queries that read user_email from that table.<button class="copy-btn" onclick="copyPrompt(this)">Copy</button></div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- PERFORMANCE -->
+  <div class="section" id="section-performance">
+    <h2 class="section-title">⚡ Performance <span class="count">5 issues</span></h2>
+
+    <div class="issue-card" data-id="p1">
+      <div class="issue-header">
+        <div class="issue-check" onclick="toggleCheck(event,'p1')"></div>
+        <div class="issue-meta">
+          <div class="issue-title">Loading interval not cleared on component unmount</div>
+          <div class="issue-sub">Translator.jsx — memory leak if user navigates mid-request</div>
+        </div>
+        <span class="badge medium">Medium</span>
+        <span class="chevron">▶</span>
+      </div>
+      <div class="issue-body">
+        <div class="file-ref">frontend/src/components/Translator.jsx</div>
+        <div class="issue-desc">The rotating loading messages use <code>setInterval</code> only cleared in <code>finally</code>. If the component unmounts before the request finishes, the interval keeps firing and calls setState on an unmounted component.</div>
+        <div class="fix-prompt-wrap">
+          <div class="fix-prompt-label">Fix prompt</div>
+          <div class="fix-prompt-box">In frontend/src/components/Translator.jsx, the setInterval for rotating loading messages is only cleared in the finally block of the translate function. Store the interval ID in a useRef and add a useEffect with a cleanup function that clears it on unmount, preventing setState calls on unmounted components.<button class="copy-btn" onclick="copyPrompt(this)">Copy</button></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="issue-card" data-id="p2">
+      <div class="issue-header">
+        <div class="issue-check" onclick="toggleCheck(event,'p2')"></div>
+        <div class="issue-meta">
+          <div class="issue-title">Translation cache has no TTL or eviction policy</div>
+          <div class="issue-sub">server.js — translations_cache grows forever</div>
+        </div>
+        <span class="badge medium">Medium</span>
+        <span class="chevron">▶</span>
+      </div>
+      <div class="issue-body">
+        <div class="file-ref">backend/server.js — storeCache()</div>
+        <div class="issue-desc">Cache entries are stored permanently. Low-hit rows from months ago accumulate, adding noise to queries. A weekly cleanup of old low-traffic entries keeps the table lean.</div>
+        <div class="code-block">-- Supabase pg_cron (weekly)
+DELETE FROM translations_cache
+WHERE last_used_at < NOW() - INTERVAL '6 months'
+  AND hit_count < 3;</div>
+        <div class="fix-prompt-wrap">
+          <div class="fix-prompt-label">Fix prompt</div>
+          <div class="fix-prompt-box">The translations_cache Supabase table has no expiry. Write a Supabase SQL scheduled function using pg_cron that runs weekly and deletes rows where last_used_at is older than 6 months AND hit_count is less than 3. Show me the SQL and how to register it in the Supabase dashboard.<button class="copy-btn" onclick="copyPrompt(this)">Copy</button></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="issue-card" data-id="p3">
+      <div class="issue-header">
+        <div class="issue-check" onclick="toggleCheck(event,'p3')"></div>
+        <div class="issue-meta">
+          <div class="issue-title">Admin user-detail makes multiple sequential DB queries</div>
+          <div class="issue-sub">server.js — slow admin dashboard under real data</div>
+        </div>
+        <span class="badge medium">Medium</span>
+        <span class="chevron">▶</span>
+      </div>
+      <div class="issue-body">
+        <div class="file-ref">backend/server.js — admin /user/:email</div>
+        <div class="issue-desc">The admin user detail endpoint fetches customers, referrals, tasks, events, and more. Any sequential queries here add unnecessary round-trip latency. All independent queries should run in parallel with Promise.all.</div>
+        <div class="fix-prompt-wrap">
+          <div class="fix-prompt-label">Fix prompt</div>
+          <div class="fix-prompt-box">In backend/server.js, find the admin endpoint that returns a single user's full detail (queries customers, referrals, user_tasks, etc.). Audit every database query it makes and ensure all independent queries run in parallel using Promise.all(). Show me the refactored version with a before/after comparison.<button class="copy-btn" onclick="copyPrompt(this)">Copy</button></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="issue-card" data-id="p4">
+      <div class="issue-header">
+        <div class="issue-check" onclick="toggleCheck(event,'p4')"></div>
+        <div class="issue-meta">
+          <div class="issue-title">Pre-warm queue has no size cap</div>
+          <div class="issue-sub">server.js — prewarmQueue grows unbounded under traffic</div>
+        </div>
+        <span class="badge low">Low</span>
+        <span class="chevron">▶</span>
+      </div>
+      <div class="issue-body">
+        <div class="file-ref">backend/server.js — prewarmRelated()</div>
+        <div class="issue-desc">4 tasks added per translate call. Under load the queue fills faster than it drains, growing memory and eventually flooding LM Studio if you enable local mode.</div>
+        <div class="fix-prompt-wrap">
+          <div class="fix-prompt-label">Fix prompt</div>
+          <div class="fix-prompt-box">In backend/server.js, add a max size check to prewarmRelated — if prewarmQueue.size is already 200 or more, skip adding new items. Add the check inside prewarmRelated before calling prewarmQueue.add().<button class="copy-btn" onclick="copyPrompt(this)">Copy</button></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="issue-card" data-id="p5">
+      <div class="issue-header">
+        <div class="issue-check" onclick="toggleCheck(event,'p5')"></div>
+        <div class="issue-meta">
+          <div class="issue-title">Analytics: one DB INSERT per page view, no batching</div>
+          <div class="issue-sub">server.js — write storm under traffic spikes</div>
+        </div>
+        <span class="badge low">Low</span>
+        <span class="chevron">▶</span>
+      </div>
+      <div class="issue-body">
+        <div class="file-ref">backend/server.js — /analytics/page-view</div>
+        <div class="issue-desc">Every page view fires an immediate Supabase INSERT. Fine at low traffic, problematic during a spike. Buffer events in memory and flush in bulk every 30 seconds.</div>
+        <div class="fix-prompt-wrap">
+          <div class="fix-prompt-label">Fix prompt</div>
+          <div class="fix-prompt-box">In backend/server.js, refactor the /analytics/page-view endpoint to buffer events in an in-memory array and flush to Supabase in bulk when the buffer hits 50 events OR every 30 seconds via setInterval — whichever comes first. Also flush on process SIGTERM. Show me the complete implementation.<button class="copy-btn" onclick="copyPrompt(this)">Copy</button></div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- UX / A11Y -->
+  <div class="section" id="section-ux">
+    <h2 class="section-title">♿ UX &amp; Accessibility <span class="count">6 issues</span></h2>
+
+    <div class="issue-card" data-id="u1">
+      <div class="issue-header">
+        <div class="issue-check" onclick="toggleCheck(event,'u1')"></div>
+        <div class="issue-meta">
+          <div class="issue-title">No React error boundary — JS error = white screen</div>
+          <div class="issue-sub">App.jsx — uncaught render errors crash the whole app</div>
+        </div>
+        <span class="badge high">High</span>
+        <span class="chevron">▶</span>
+      </div>
+      <div class="issue-body">
+        <div class="file-ref">frontend/src/main.jsx</div>
+        <div class="issue-desc">No ErrorBoundary wraps the app. Any uncaught render error (like the missing StepExecution component) shows a blank page with no explanation. Especially bad for ADHD users who may not know to refresh.</div>
+        <div class="fix-prompt-wrap">
+          <div class="fix-prompt-label">Fix prompt</div>
+          <div class="fix-prompt-box">Create a React ErrorBoundary class component at frontend/src/components/ErrorBoundary.jsx. It should catch render errors, log them to console, and show a calm fallback UI matching FocusStep's dark design — a friendly message and a reload button. Then wrap the App component in frontend/src/main.jsx with this ErrorBoundary.<button class="copy-btn" onclick="copyPrompt(this)">Copy</button></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="issue-card" data-id="u2">
+      <div class="issue-header">
+        <div class="issue-check" onclick="toggleCheck(event,'u2')"></div>
+        <div class="issue-meta">
+          <div class="issue-title">Icon-only buttons have no accessible label</div>
+          <div class="issue-sub">Translator.jsx — 🔊 audio, copy, close buttons unreadable by screen readers</div>
+        </div>
+        <span class="badge high">High</span>
+        <span class="chevron">▶</span>
+      </div>
+      <div class="issue-body">
+        <div class="file-ref">frontend/src/components/Translator.jsx</div>
+        <div class="issue-desc">Buttons showing only emoji have no <code>aria-label</code>. A screen reader announces them as "button" with no context. WCAG 2.1 SC 4.1.2 requires all UI components to have an accessible name.</div>
+        <div class="code-block">&lt;button aria-label="Read step aloud"&gt;🔊&lt;/button&gt;
+&lt;button aria-label="Copy to clipboard"&gt;📋&lt;/button&gt;
+&lt;button aria-label="Close"&gt;✕&lt;/button&gt;</div>
+        <div class="fix-prompt-wrap">
+          <div class="fix-prompt-label">Fix prompt</div>
+          <div class="fix-prompt-box">In frontend/src/components/Translator.jsx, find every button that contains only an emoji or icon with no visible text, and add a descriptive aria-label to each one. List every button you find, the label you'd give it, and show the updated JSX.<button class="copy-btn" onclick="copyPrompt(this)">Copy</button></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="issue-card" data-id="u3">
+      <div class="issue-header">
+        <div class="issue-check" onclick="toggleCheck(event,'u3')"></div>
+        <div class="issue-meta">
+          <div class="issue-title">AuthModal doesn't trap focus</div>
+          <div class="issue-sub">AuthModal.jsx — Tab key escapes to background content</div>
+        </div>
+        <span class="badge medium">Medium</span>
+        <span class="chevron">▶</span>
+      </div>
+      <div class="issue-body">
+        <div class="file-ref">frontend/src/components/AuthModal.jsx</div>
+        <div class="issue-desc">When the modal is open, tabbing eventually reaches background page elements. WCAG 2.1 requires focus to stay inside open dialog components. Focus should also return to the trigger element on close.</div>
+        <div class="fix-prompt-wrap">
+          <div class="fix-prompt-label">Fix prompt</div>
+          <div class="fix-prompt-box">In frontend/src/components/AuthModal.jsx, implement focus trapping: when the modal opens move focus to the first focusable element inside it; intercept Tab and Shift+Tab to cycle only within the modal; when it closes, return focus to whatever element triggered it. Use a useEffect with a ref to the modal container.<button class="copy-btn" onclick="copyPrompt(this)">Copy</button></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="issue-card" data-id="u4">
+      <div class="issue-header">
+        <div class="issue-check" onclick="toggleCheck(event,'u4')"></div>
+        <div class="issue-meta">
+          <div class="issue-title">Errors use native alert() — jarring in a calm app</div>
+          <div class="issue-sub">Pricing.jsx, Translator.jsx — alert() blocks UI thread</div>
+        </div>
+        <span class="badge medium">Medium</span>
+        <span class="chevron">▶</span>
+      </div>
+      <div class="issue-body">
+        <div class="file-ref">frontend/src/components/Pricing.jsx</div>
+        <div class="issue-desc">Error states fall back to <code>alert()</code> which blocks the thread and looks completely out of place in an ADHD-friendly calm UI. A simple auto-dismissing toast fits the design.</div>
+        <div class="fix-prompt-wrap">
+          <div class="fix-prompt-label">Fix prompt</div>
+          <div class="fix-prompt-box">Create a lightweight toast notification system for FocusStep: (1) a Toast component rendered in App.jsx near the root, (2) a useToast hook or showToast(message, type) function accessible from child components, (3) auto-dismiss after 4 seconds, (4) support 'error', 'success', 'info' types with appropriate colors matching the existing design. Then replace all alert() calls in Pricing.jsx and Translator.jsx with showToast().<button class="copy-btn" onclick="copyPrompt(this)">Copy</button></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="issue-card" data-id="u5">
+      <div class="issue-header">
+        <div class="issue-check" onclick="toggleCheck(event,'u5')"></div>
+        <div class="issue-meta">
+          <div class="issue-title">Success page is sparse — missed conversion moment</div>
+          <div class="issue-sub">Success.jsx — user just paid, page gives them nothing to do</div>
+        </div>
+        <span class="badge medium">Medium</span>
+        <span class="chevron">▶</span>
+      </div>
+      <div class="issue-body">
+        <div class="file-ref">frontend/src/components/Success.jsx</div>
+        <div class="issue-desc">The post-payment page is a huge missed opportunity. The user is at peak motivation — they just spent money. Show them what they unlocked, give them a first action, and surface their referral link to kickstart word-of-mouth.</div>
+        <div class="fix-prompt-wrap">
+          <div class="fix-prompt-label">Fix prompt</div>
+          <div class="fix-prompt-box">Improve frontend/src/components/Success.jsx. After payment it should: (1) show a warm confirmation in FocusStep's calm tone, (2) list 2-3 bullet points of what Pro unlocks, (3) have a clear 'Start translating' CTA button, (4) show a shareable referral link if the user is logged in (pull from props or the auth context). Keep the design simple — no animations that feel overwhelming.<button class="copy-btn" onclick="copyPrompt(this)">Copy</button></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="issue-card" data-id="u6">
+      <div class="issue-header">
+        <div class="issue-check" onclick="toggleCheck(event,'u6')"></div>
+        <div class="issue-meta">
+          <div class="issue-title">parseJSON throws on malformed AI response — unhandled 500</div>
+          <div class="issue-sub">server.js — JSON.parse crash gives user a generic error</div>
+        </div>
+        <span class="badge high">High</span>
+        <span class="chevron">▶</span>
+      </div>
+      <div class="issue-body">
+        <div class="file-ref">backend/server.js — parseJSON()</div>
+        <div class="issue-desc"><code>parseJSON()</code> calls <code>JSON.parse()</code> with no try-catch. Claude occasionally returns malformed JSON — this crashes the endpoint with an unhandled exception. Wrap it and return a structured error the frontend can show gracefully.</div>
+        <div class="fix-prompt-wrap">
+          <div class="fix-prompt-label">Fix prompt</div>
+          <div class="fix-prompt-box">In backend/server.js, wrap the JSON.parse call inside parseJSON() in a try-catch and return null on failure instead of throwing. Then in runCached and each route handler, check if the parsed result is null and return a 503 response with { error: 'Could not understand the AI response — please try again in a moment.' } so the frontend can display it clearly.<button class="copy-btn" onclick="copyPrompt(this)">Copy</button></div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- CODE QUALITY -->
+  <div class="section" id="section-quality">
+    <h2 class="section-title">🛠 Code Quality <span class="count">5 issues</span></h2>
+
+    <div class="issue-card" data-id="q1">
+      <div class="issue-header">
+        <div class="issue-check" onclick="toggleCheck(event,'q1')"></div>
+        <div class="issue-meta">
+          <div class="issue-title">App.jsx has 14+ useState hooks in one component</div>
+          <div class="issue-sub">App.jsx:49-61 — auth, pro, plan, view, history all in one place</div>
+        </div>
+        <span class="badge medium">Medium</span>
+        <span class="chevron">▶</span>
+      </div>
+      <div class="issue-body">
+        <div class="file-ref">frontend/src/App.jsx:49-61</div>
+        <div class="issue-desc">App manages auth state, pro status, plan, routing, history, favorites, account menu, subView, and referral tracking. As features grow this component becomes harder to reason about. An AuthContext would clean it up significantly.</div>
+        <div class="fix-prompt-wrap">
+          <div class="fix-prompt-label">Fix prompt</div>
+          <div class="fix-prompt-box">In frontend/src/App.jsx, extract auth-related state (user, isPro, plan, authModal) into a new AuthContext at frontend/src/context/AuthContext.jsx with a useAuth() hook. Update App.jsx and any child components that currently receive these as props to use the hook. Leave history and favorites in App.jsx for now.<button class="copy-btn" onclick="copyPrompt(this)">Copy</button></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="issue-card" data-id="q2">
+      <div class="issue-header">
+        <div class="issue-check" onclick="toggleCheck(event,'q2')"></div>
+        <div class="issue-meta">
+          <div class="issue-title">getAnalyticsSessionId() duplicated in two files</div>
+          <div class="issue-sub">App.jsx:39 and Translator.jsx:9 — exact copy-paste</div>
+        </div>
+        <span class="badge low">Low</span>
+        <span class="chevron">▶</span>
+      </div>
+      <div class="issue-body">
+        <div class="file-ref">frontend/src/App.jsx:39 and Translator.jsx:9</div>
+        <div class="issue-desc">The identical function is copy-pasted in both files. If you ever need to change the session ID format you'd have to find and update both. Move it to <code>frontend/src/lib/analytics.js</code>.</div>
+        <div class="fix-prompt-wrap">
+          <div class="fix-prompt-label">Fix prompt</div>
+          <div class="fix-prompt-box">The function getAnalyticsSessionId() is defined identically in both frontend/src/App.jsx and frontend/src/components/Translator.jsx. Move it to frontend/src/lib/analytics.js and export it, then import it in both files. Remove the duplicate definitions.<button class="copy-btn" onclick="copyPrompt(this)">Copy</button></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="issue-card" data-id="q3">
+      <div class="issue-header">
+        <div class="issue-check" onclick="toggleCheck(event,'q3')"></div>
+        <div class="issue-meta">
+          <div class="issue-title">Magic numbers scattered — no central config</div>
+          <div class="issue-sub">server.js + Translator.jsx — 5, 300, 900, 50 hardcoded everywhere</div>
+        </div>
+        <span class="badge low">Low</span>
+        <span class="chevron">▶</span>
+      </div>
+      <div class="issue-body">
+        <div class="file-ref">backend/server.js:61, frontend/src/App.jsx:18</div>
+        <div class="issue-desc">FREE_LIMIT, max task length, max steps, max tokens, max history are sprinkled across multiple files. Changing the free limit means hunting through the codebase.</div>
+        <div class="fix-prompt-wrap">
+          <div class="fix-prompt-label">Fix prompt</div>
+          <div class="fix-prompt-box">In backend/server.js, collect all business-logic constants (free daily limit, max tokens per AI call, max steps, etc.) into a single CONFIG object at the top of the file. Replace all inline literals with CONFIG.X references. Do the same for frontend/src/App.jsx with MAX_HISTORY and any other constants.<button class="copy-btn" onclick="copyPrompt(this)">Copy</button></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="issue-card" data-id="q4">
+      <div class="issue-header">
+        <div class="issue-check" onclick="toggleCheck(event,'q4')"></div>
+        <div class="issue-meta">
+          <div class="issue-title">Referral self-referral and duplicate-use not blocked</div>
+          <div class="issue-sub">server.js /referral/attach — user can refer themselves</div>
+        </div>
+        <span class="badge medium">Medium</span>
+        <span class="chevron">▶</span>
+      </div>
+      <div class="issue-body">
+        <div class="file-ref">backend/server.js — /referral/attach</div>
+        <div class="issue-desc">No check prevents a user from: (1) using their own referral code with a second account, or (2) being referred by two people. Without guards, motivated users will abuse this to get free Pro days.</div>
+        <div class="fix-prompt-wrap">
+          <div class="fix-prompt-label">Fix prompt</div>
+          <div class="fix-prompt-box">In backend/server.js, harden the POST /referral/attach route with two guards: (1) if the referral code belongs to the same email as req.authUser.email return 400 'Cannot use your own referral code'; (2) if the customers row already has a non-null referred_by value return 400 'Already referred'. Add both checks before any database writes.<button class="copy-btn" onclick="copyPrompt(this)">Copy</button></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="issue-card" data-id="q5">
+      <div class="issue-header">
+        <div class="issue-check" onclick="toggleCheck(event,'q5')"></div>
+        <div class="issue-meta">
+          <div class="issue-title">Admin referral-rule inputs have no validation</div>
+          <div class="issue-sub">server.js — negative reward_value or invalid enum accepted</div>
+        </div>
+        <span class="badge medium">Medium</span>
+        <span class="chevron">▶</span>
+      </div>
+      <div class="issue-body">
+        <div class="file-ref">backend/server.js — /admin/referral-rules POST</div>
+        <div class="issue-desc">The endpoint accepts whatever the admin posts. A typo creating a reward_value of -10 or an invalid reward_type would break downstream logic silently.</div>
+        <div class="fix-prompt-wrap">
+          <div class="fix-prompt-label">Fix prompt</div>
+          <div class="fix-prompt-box">In backend/server.js, find the POST /admin/referral-rules endpoint and add input validation: reward_value must be a number >= 0, reward_type must match the allowed enum values in your schema, referrer_plan and trigger_plan must match allowed values. Return 400 with a specific error message for each failed check.<button class="copy-btn" onclick="copyPrompt(this)">Copy</button></div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- MOBILE -->
+  <div class="section" id="section-mobile">
+    <h2 class="section-title">📱 Mobile &amp; Responsive <span class="count">3 issues</span></h2>
+
+    <div class="issue-card" data-id="m1">
+      <div class="issue-header">
+        <div class="issue-check" onclick="toggleCheck(event,'m1')"></div>
+        <div class="issue-meta">
+          <div class="issue-title">Nav bar overflows on small screens</div>
+          <div class="issue-sub">App.css — no mobile breakpoint, many nav items</div>
+        </div>
+        <span class="badge medium">Medium</span>
+        <span class="chevron">▶</span>
+      </div>
+      <div class="issue-body">
+        <div class="file-ref">frontend/src/App.css — nav styles</div>
+        <div class="issue-desc">The header nav has many items (Translate, Pricing, Earn, Progress, Snaps, Account) with no mobile handling. On phones they either wrap awkwardly or overflow.</div>
+        <div class="fix-prompt-wrap">
+          <div class="fix-prompt-label">Fix prompt</div>
+          <div class="fix-prompt-box">In frontend/src/App.css, add a media query for max-width: 640px that makes the header nav scroll horizontally (overflow-x: auto, white-space: nowrap, scrollbar hidden with -webkit-scrollbar: none) rather than wrapping or overflowing. Reduce nav-link padding to 6px 10px on mobile so more items fit without scrolling.<button class="copy-btn" onclick="copyPrompt(this)">Copy</button></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="issue-card" data-id="m2">
+      <div class="issue-header">
+        <div class="issue-check" onclick="toggleCheck(event,'m2')"></div>
+        <div class="issue-meta">
+          <div class="issue-title">Touch targets below 44px on nav and icon buttons</div>
+          <div class="issue-sub">App.css — .nav-link padding gives ~24px tap height</div>
+        </div>
+        <span class="badge medium">Medium</span>
+        <span class="chevron">▶</span>
+      </div>
+      <div class="issue-body">
+        <div class="file-ref">frontend/src/App.css — .nav-link</div>
+        <div class="issue-desc">WCAG 2.5.5 recommends 44×44px minimum touch targets. Nav links with <code>padding: 7px 16px</code> result in roughly 24px height — hard to tap accurately on mobile, especially for users with motor difficulties.</div>
+        <div class="fix-prompt-wrap">
+          <div class="fix-prompt-label">Fix prompt</div>
+          <div class="fix-prompt-box">In frontend/src/App.css, add a media query for max-width: 768px that sets min-height: 44px on .nav-link and other small interactive buttons (.back-btn, icon buttons). Use display: flex and align-items: center to vertically center content without adding visual bulk to desktop layouts.<button class="copy-btn" onclick="copyPrompt(this)">Copy</button></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="issue-card" data-id="m3">
+      <div class="issue-header">
+        <div class="issue-check" onclick="toggleCheck(event,'m3')"></div>
+        <div class="issue-meta">
+          <div class="issue-title">Pricing grid can overflow on small phones</div>
+          <div class="issue-sub">App.css — fixed column widths break below ~480px</div>
+        </div>
+        <span class="badge low">Low</span>
+        <span class="chevron">▶</span>
+      </div>
+      <div class="issue-body">
+        <div class="file-ref">frontend/src/App.css — .pricing-grid</div>
+        <div class="issue-desc">On 320-375px screens (older iPhones, smaller Androids), pricing cards with fixed minimum widths overflow the viewport horizontally.</div>
+        <div class="fix-prompt-wrap">
+          <div class="fix-prompt-label">Fix prompt</div>
+          <div class="fix-prompt-box">In frontend/src/App.css, update .pricing-grid to use: grid-template-columns: repeat(auto-fit, minmax(min(280px, 100%), 1fr)) so it falls back gracefully to a single column on small screens. Also check .lifetime-row and ensure it stacks vertically on mobile with a media query at max-width: 600px.<button class="copy-btn" onclick="copyPrompt(this)">Copy</button></div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- SEO -->
+  <div class="section" id="section-seo">
+    <h2 class="section-title">🔍 SEO &amp; Meta <span class="count">3 issues</span></h2>
+
+    <div class="issue-card" data-id="seo1">
+      <div class="issue-header">
+        <div class="issue-check" onclick="toggleCheck(event,'seo1')"></div>
+        <div class="issue-meta">
+          <div class="issue-title">No Open Graph / social meta tags</div>
+          <div class="issue-sub">index.html — link previews show blank on Discord, iMessage, Twitter</div>
+        </div>
+        <span class="badge low">Low</span>
+        <span class="chevron">▶</span>
+      </div>
+      <div class="issue-body">
+        <div class="file-ref">frontend/index.html &lt;head&gt;</div>
+        <div class="issue-desc">Sharing the URL anywhere shows no title, image, or description. For a product relying on word-of-mouth from ADHD communities this is leaving reach on the table.</div>
+        <div class="code-block">&lt;meta property="og:title" content="FocusStep — ADHD Task Translator"&gt;
+&lt;meta property="og:description" content="Break overwhelming tasks into calm, clear steps."&gt;
+&lt;meta property="og:image" content="https://focusstepadhd.com/og-image.png"&gt;
+&lt;meta name="twitter:card" content="summary_large_image"&gt;</div>
+        <div class="fix-prompt-wrap">
+          <div class="fix-prompt-label">Fix prompt</div>
+          <div class="fix-prompt-box">Add Open Graph and Twitter Card meta tags to frontend/index.html. Title: 'FocusStep — ADHD Task Translator'. Description: 'Break overwhelming tasks into calm, clear steps. Built for ADHD brains. Free to start.' Point og:image to /og-image.png. Include og:type, og:url, twitter:card, and a canonical link tag pointing to https://focusstepadhd.com.<button class="copy-btn" onclick="copyPrompt(this)">Copy</button></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="issue-card" data-id="seo2">
+      <div class="issue-header">
+        <div class="issue-check" onclick="toggleCheck(event,'seo2')"></div>
+        <div class="issue-meta">
+          <div class="issue-title">Page title doesn't update per view</div>
+          <div class="issue-sub">App.jsx — all views show the same browser tab title</div>
+        </div>
+        <span class="badge low">Low</span>
+        <span class="chevron">▶</span>
+      </div>
+      <div class="issue-body">
+        <div class="fix-prompt-wrap">
+          <div class="fix-prompt-label">Fix prompt</div>
+          <div class="fix-prompt-box">In frontend/src/App.jsx, add a useEffect that updates document.title whenever the view state changes. Map: 'app' → 'FocusStep — Translate a Task', 'pricing' → 'FocusStep — Pricing', 'success' → 'FocusStep — You\'re Pro!', 'dashboard' → 'FocusStep — Dashboard', default → 'FocusStep'.<button class="copy-btn" onclick="copyPrompt(this)">Copy</button></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="issue-card" data-id="seo3">
+      <div class="issue-header">
+        <div class="issue-check" onclick="toggleCheck(event,'seo3')"></div>
+        <div class="issue-meta">
+          <div class="issue-title">No sitemap or robots.txt</div>
+          <div class="issue-sub">Search engines can't efficiently discover pages</div>
+        </div>
+        <span class="badge low">Low</span>
+        <span class="chevron">▶</span>
+      </div>
+      <div class="issue-body">
+        <div class="fix-prompt-wrap">
+          <div class="fix-prompt-label">Fix prompt</div>
+          <div class="fix-prompt-box">Create two files: (1) frontend/public/robots.txt that allows all crawlers and points to the sitemap URL; (2) frontend/public/sitemap.xml with entries for the homepage and /pricing using today's date as lastmod and weekly changefreq. Keep it simple — no dynamic generation needed yet.<button class="copy-btn" onclick="copyPrompt(this)">Copy</button></div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="divider"></div>
+
+  <!-- WHAT'S GOOD -->
+  <div class="section" id="section-good">
+    <h2 class="section-title">✅ What You're Doing Well</h2>
+
+    <div class="good-card">
+      <div class="good-title">Layered content moderation</div>
+      <div class="good-desc">Hard-block regex runs locally first (zero latency, no API cost) then the AI catches nuanced edge cases. Two-stage is the right architecture — it's what production content platforms use.</div>
+    </div>
+    <div class="good-card">
+      <div class="good-title">Idempotent Stripe webhook handling</div>
+      <div class="good-desc">Using <code>upsert({ onConflict: 'email' })</code> means Stripe webhook retries never create duplicate customers or double-charge. Critical for payment reliability and you got it right.</div>
+    </div>
+    <div class="good-card">
+      <div class="good-title">Correct Stripe webhook signature verification</div>
+      <div class="good-desc"><code>stripe.webhooks.constructEvent(req.body, sig, secret)</code> with <code>express.raw()</code> before JSON middleware — textbook correct. Many tutorials get this wrong. You didn't.</div>
+    </div>
+    <div class="good-card">
+      <div class="good-title">Semantic cache with filler-word normalization</div>
+      <div class="good-desc">"please help me clean the bathroom" and "clean bathroom" hit the same cache entry. Smart, reduces AI costs significantly, and the optional embedding fallback is a nice upgrade path.</div>
+    </div>
+    <div class="good-card">
+      <div class="good-title">Supabase auth client stubs out gracefully</div>
+      <div class="good-desc">The supabase.js client returns a no-op stub when env vars are missing. The app still works without auth configured — excellent DX for development and onboarding new contributors.</div>
+    </div>
+    <div class="good-card">
+      <div class="good-title">requireAuth middleware on all protected routes</div>
+      <div class="good-desc">Clean separation — every route that needs auth explicitly declares it. No route accidentally forgets the middleware. The pattern makes security review straightforward.</div>
+    </div>
+    <div class="good-card">
+      <div class="good-title">System prompt quality</div>
+      <div class="good-desc">The ADHD-specific constraints (no should/must, one action per step, specific sensory detail) are well-thought-out and make a real difference in output quality. The product lives its values in the prompt.</div>
+    </div>
+    <div class="good-card">
+      <div class="good-title">USE_LOCAL_LM toggle for offline development</div>
+      <div class="good-desc">The <code>callAI()</code> abstraction lets you develop without burning Anthropic credits. The LM Studio integration is clean and the model swap is truly seamless.</div>
+    </div>
+  </div>
+
+  <div class="divider"></div>
+
+  <!-- MISSING FEATURES -->
+  <div class="section" id="section-features">
+    <h2 class="section-title">💡 Features You Might Be Overlooking <span class="count">7 ideas</span></h2>
+
+    <div class="feature-card">
+      <div class="feature-title">Offline / PWA caching</div>
+      <div class="feature-desc">You already have a service worker registered. Caching the last translation so users can access their steps when they lose wifi mid-task — exactly when an ADHD brain needs it most — is low effort and high value.</div>
+      <div class="feature-prompt-wrap">
+        <div class="fix-prompt-label">Prompt</div>
+        <div class="feature-prompt-box">Add PWA offline support to FocusStep. We already have a service worker file. Configure it to: (1) cache the app shell on install, (2) cache the last 5 translation results in localStorage so they're readable offline, (3) show a gentle 'You're offline — here's your last task' fallback if a translate request fails due to no connection. Show me what to change in the service worker and Translator.jsx.<button class="copy-btn" onclick="copyPrompt(this)">Copy</button></div>
+      </div>
+    </div>
+
+    <div class="feature-card">
+      <div class="feature-title">Welcome email after payment</div>
+      <div class="feature-desc">The webhook silently flips is_pro to true. Sending a transactional email confirming the purchase, explaining what they unlocked, and giving a first task idea would reduce refund requests and reinforce the purchase decision.</div>
+      <div class="feature-prompt-wrap">
+        <div class="fix-prompt-label">Prompt</div>
+        <div class="feature-prompt-box">After the checkout.session.completed webhook in backend/server.js successfully upserts the customer as Pro, send a welcome email using the Resend API (npm package 'resend'). The email should confirm their plan (monthly or lifetime), list 3 things they can now do, and include their referral link if available. Show me the code and a plain-text + HTML email template in FocusStep's calm tone.<button class="copy-btn" onclick="copyPrompt(this)">Copy</button></div>
+      </div>
+    </div>
+
+    <div class="feature-card">
+      <div class="feature-title">Task templates / starter packs</div>
+      <div class="feature-desc">ADHD users often struggle with "what do I even ask?" Pre-built packs (Morning Routine, Laundry, Paying Bills, Self Care) that auto-populate and translate instantly would lower the barrier to first use dramatically.</div>
+      <div class="feature-prompt-wrap">
+        <div class="fix-prompt-label">Prompt</div>
+        <div class="feature-prompt-box">Add a Task Packs section above the input in frontend/src/components/Translator.jsx. Show 4 category chips (Morning Routine, Clean Up, Admin Tasks, Self Care). Clicking a category shows 3-4 common tasks as chips beneath it. Clicking a task chip populates the textarea and auto-submits. Hardcode all tasks — no backend needed. Match the existing chip design in the component.<button class="copy-btn" onclick="copyPrompt(this)">Copy</button></div>
+      </div>
+    </div>
+
+    <div class="feature-card">
+      <div class="feature-title">Cmd+Enter keyboard shortcut to translate</div>
+      <div class="feature-desc">Power users at their desk want to type a task and hit Cmd+Enter. Takes 5 minutes to add and makes the app feel much more native to keyboard users.</div>
+      <div class="feature-prompt-wrap">
+        <div class="fix-prompt-label">Prompt</div>
+        <div class="feature-prompt-box">In frontend/src/components/Translator.jsx, add a keyboard shortcut: Cmd+Enter (Mac) or Ctrl+Enter (Windows/Linux) on the task textarea should trigger the translate submit handler. Use an onKeyDown handler on the textarea. Also add a small hint text below the textarea that reads 'Cmd+Enter to translate' — hide it on touch devices using a CSS media query (hover: none).<button class="copy-btn" onclick="copyPrompt(this)">Copy</button></div>
+      </div>
+    </div>
+
+    <div class="feature-card">
+      <div class="feature-title">Persist step completion state across sessions</div>
+      <div class="feature-desc">Users can check off steps but the state is lost on refresh. Saving completion state in localStorage keyed to the task text would let someone close their laptop and come back knowing exactly where they left off.</div>
+      <div class="feature-prompt-wrap">
+        <div class="fix-prompt-label">Prompt</div>
+        <div class="feature-prompt-box">In frontend/src/components/Translator.jsx, persist step completion state in localStorage. Key it by a simple hash of the task text so different tasks have independent completion state. When a result loads, restore any previously completed steps. When a step is checked, update localStorage immediately. Add a 'Reset progress' link that clears the state for the current task only.<button class="copy-btn" onclick="copyPrompt(this)">Copy</button></div>
+      </div>
+    </div>
+
+    <div class="feature-card">
+      <div class="feature-title">Daily digest email for Pro users (opt-in)</div>
+      <div class="feature-desc">A daily morning email that picks one saved translation as "your task for today" would give you a legitimate reason to stay in users' inboxes and drive daily retention — the hardest metric for productivity tools.</div>
+      <div class="feature-prompt-wrap">
+        <div class="fix-prompt-label">Prompt</div>
+        <div class="feature-prompt-box">Design a daily digest opt-in for FocusStep Pro users. Add a POST /user/digest-preferences endpoint (requireAuth) in backend/server.js that saves an opt_in_digest boolean and preferred_send_hour to the customers table. Then describe how to set up a Supabase pg_cron job that runs daily, queries opted-in Pro users, picks one of their saved tasks at random, and sends a calm morning email via Resend. Show the SQL and the email template.<button class="copy-btn" onclick="copyPrompt(this)">Copy</button></div>
+      </div>
+    </div>
+
+    <div class="feature-card">
+      <div class="feature-title">Embeddable widget for ADHD coaches</div>
+      <div class="feature-desc">ADHD coaches and therapists recommend tools to their clients. A one-line iframe embed they can drop on their own site — with referral attribution baked in — would be a high-quality, low-cost acquisition channel.</div>
+      <div class="feature-prompt-wrap">
+        <div class="fix-prompt-label">Prompt</div>
+        <div class="feature-prompt-box">Design an embeddable widget for FocusStep. Create a /embed route in React that renders just the task input and results in a compact layout with no nav or pricing. It should accept a ?ref=CODE query param and store it in sessionStorage for referral attribution when the user later signs up. Show me the React component and what a coach's one-line embed snippet would look like.<button class="copy-btn" onclick="copyPrompt(this)">Copy</button></div>
+      </div>
+    </div>
+
+  </div>
+
+</div>
+
+<div class="sticky-footer">
+  <span>FocusStep Audit · March 28, 2026 · Click any issue to expand · Check the box to mark resolved</span>
+  <strong id="footer-done">0 of 38 resolved</strong>
+</div>
+
+<script>
+  const TOTAL = 38;
+  const state = JSON.parse(localStorage.getItem('focusstep_audit_v2') || '{}');
+
+  function save() { localStorage.setItem('focusstep_audit_v2', JSON.stringify(state)); }
+
+  function updateProgress() {
+    const done = Object.values(state).filter(Boolean).length;
+    const pct = Math.round((done / TOTAL) * 100);
+    document.getElementById('done-count').textContent = done + ' / ' + TOTAL;
+    document.getElementById('footer-done').textContent = done + ' of ' + TOTAL + ' resolved';
+    document.getElementById('progress-fill').style.width = pct + '%';
+    document.getElementById('pct-label').textContent = pct + '%';
+  }
+
+  function toggleCheck(e, id) {
+    e.stopPropagation();
+    state[id] = !state[id];
+    const card = document.querySelector('[data-id="' + id + '"]');
+    const check = card.querySelector('.issue-check');
+    if (state[id]) { check.classList.add('checked'); card.classList.add('done'); }
+    else { check.classList.remove('checked'); card.classList.remove('done'); }
+    save();
+    updateProgress();
+  }
+
+  function copyPrompt(btn) {
+    const box = btn.parentElement;
+    const text = box.textContent.replace(/Copy$/, '').replace(/Copied!$/, '').trim();
+    navigator.clipboard.writeText(text).then(() => {
+      btn.textContent = 'Copied!';
+      btn.classList.add('copied');
+      setTimeout(() => { btn.textContent = 'Copy'; btn.classList.remove('copied'); }, 2000);
+    });
+  }
+
+  // Init
+  document.querySelectorAll('.issue-card[data-id]').forEach(card => {
+    const id = card.dataset.id;
+    if (state[id]) { card.classList.add('done'); card.querySelector('.issue-check').classList.add('checked'); }
+    card.querySelector('.issue-header').addEventListener('click', e => {
+      if (e.target.classList.contains('issue-check')) return;
+      card.classList.toggle('open');
+    });
+  });
+
+  // TOC scrollspy
+  const sections = document.querySelectorAll('.section[id]');
+  const tocLinks = document.querySelectorAll('.toc a');
+  window.addEventListener('scroll', () => {
+    let current = '';
+    sections.forEach(s => { if (window.scrollY >= s.offsetTop - 120) current = s.id; });
+    tocLinks.forEach(a => a.classList.toggle('active', a.getAttribute('href') === '#' + current));
+  }, { passive: true });
+
+  updateProgress();
+</script>
+</body>
+</html>
