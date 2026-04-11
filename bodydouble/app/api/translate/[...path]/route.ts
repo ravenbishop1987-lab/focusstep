@@ -19,16 +19,10 @@ import { createClient, createServiceClient } from '@/lib/supabase/server'
 
 export const dynamic = 'force-dynamic'
 
-function normalizeServiceUrl(rawUrl: string) {
-  const trimmed = rawUrl.trim().replace(/\/$/, '')
-  if (!trimmed) return ''
-  return /^https?:\/\//i.test(trimmed) ? trimmed : `http://${trimmed}`
-}
-
-const TRANSLATE_SERVICE_URL = normalizeServiceUrl(process.env.TRANSLATE_SERVICE_URL ?? '')
+const TRANSLATE_SERVICE_URL = process.env.TRANSLATE_SERVICE_URL?.replace(/\/$/, '') ?? ''
 // Use the shared Supabase service role key as the proxy secret — both services already have it
 const PROXY_SECRET = process.env.SUPABASE_SERVICE_ROLE_KEY ?? ''
-const UPSTREAM_TIMEOUT_MS = 45000
+const UPSTREAM_TIMEOUT_MS = 15000
 
 export async function GET(req: NextRequest, { params }: { params: { path: string[] } }) {
   return proxyRequest(req, params.path, 'GET')

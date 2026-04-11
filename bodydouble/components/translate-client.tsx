@@ -1,16 +1,16 @@
 'use client'
 
-import { useState, useRef, useCallback, useEffect, useMemo } from 'react'
+import { useState, useRef, useCallback, useEffect } from 'react'
 import Link from 'next/link'
 import styles from './translate-client.module.css'
 
 const LOADING_MESSAGES = [
-  'Breaking it down…',
-  'Finding the details…',
-  'Making this easier…',
+  'Breaking it down gently…',
+  'Finding the details that matter…',
+  'Making this easier for you…',
+  'Almost there…',
 ]
-const REFINE_MESSAGES = ['Making this more specific…', 'Tailoring the steps…']
-const CTA_OPTIONS = ['Just tell me what to do', 'Give me the first step', 'Start me']
+const REFINE_MESSAGES = ['Making it more specific…', 'Tailoring your steps…', 'Almost there…']
 
 type Step = { action: string; detail?: string } | string
 type TranslateResult = {
@@ -279,20 +279,13 @@ function StepCard({
       )}
 
       <div className={styles.execActions}>
-        <div className={styles.execActionsRow}>
-          {!isIntro && (
-            <button className={styles.execDoneSecondary} onClick={onDone} disabled={animState !== 'visible'}>
-              Done
-            </button>
-          )}
-          <button
-            className={styles.execDoneBtn}
-            onClick={onDone}
-            disabled={animState !== 'visible'}
-          >
-            {isIntro ? 'Start here' : stepNum >= totalSteps ? 'Finish ✓' : 'Next small step →'}
-          </button>
-        </div>
+        <button
+          className={styles.execDoneBtn}
+          onClick={onDone}
+          disabled={animState !== 'visible'}
+        >
+          {isIntro ? 'Start Here →' : stepNum >= totalSteps ? 'Finish ✓' : 'Next Small Step →'}
+        </button>
         {!isIntro && !stuckResult && !stuckOpen && (
           <button className={styles.execStuckBtn} onClick={() => setStuckOpen(true)}>
             I&apos;m stuck
@@ -337,7 +330,6 @@ function CompletionView({
     <div className={styles.execComplete}>
       <div className={styles.execCompleteBurst}>🎉</div>
       <h2 className={styles.execCompleteTitle}>You did it.</h2>
-      <div className={styles.execCompleteNote}>You showed up — you’re building momentum.</div>
       <p className={styles.execCompleteTask}>{task}</p>
       <div className={styles.execCompleteStats}>
         {totalSteps} step{totalSteps !== 1 ? 's' : ''} completed
@@ -381,10 +373,6 @@ function StepExecution({
   const [done, setDone] = useState(false)
   const [animState, setAnimState] = useState('visible')
   const [showPlan, setShowPlan] = useState(false)
-  const [reinforceMsg, setReinforceMsg] = useState<string | null>(null)
-  const [showSavePrompt, setShowSavePrompt] = useState(false)
-  const [emailToSave, setEmailToSave] = useState(userEmail || '')
-  const [saveStatus, setSaveStatus] = useState<string | null>(null)
   const totalSteps = steps.length
   const isIntro = index === -1
   const progress = isIntro ? 0 : Math.round(((index + 1) / totalSteps) * 100)
@@ -401,25 +389,11 @@ function StepExecution({
 
   const handleDone = useCallback(() => {
     const isLastStep = !isIntro && index + 1 >= totalSteps
-    // Choose a small, calm reinforcement message
-    const reinforceOptionsFirst = ['You started. That matters.', 'Good. Keep going.']
-    const reinforceOptionsLater = ['You didn’t avoid it this time', 'That was the hardest part', 'You’re moving now']
-    const msg = isIntro ? reinforceOptionsFirst[Math.floor(Math.random() * reinforceOptionsFirst.length)] : reinforceOptionsLater[Math.floor(Math.random() * reinforceOptionsLater.length)]
-    setReinforceMsg(msg)
-    // show reinforcement briefly, then advance
-    setTimeout(() => {
-      setReinforceMsg(null)
-      transition(() => {
-        if (isLastStep) {
-          setDone(true)
-        } else {
-          setIndex((i) => i + 1)
-          // after completing the intro (first actual step), gently offer to save progress
-          if (isIntro && !isSignedIn) setShowSavePrompt(true)
-        }
-      }, 'next')
-    }, 700)
-  }, [isIntro, index, totalSteps, transition, isSignedIn])
+    transition(() => {
+      if (isLastStep) setDone(true)
+      else setIndex((i) => i + 1)
+    }, 'next')
+  }, [isIntro, index, totalSteps, transition])
 
   const handleBack = useCallback(() => {
     if (index <= -1) return
@@ -473,54 +447,6 @@ function StepExecution({
         task={task}
         userEmail={userEmail}
       />
-
-      {reinforceMsg && (
-        <div className={styles.reinforceMsg} role="status">{reinforceMsg}</div>
-      )}
-
-      {showSavePrompt && (
-        <div className={styles.softSavePrompt}>
-          {!saveStatus ? (
-            <>
-              <div className={styles.softSaveText}>Want to save your progress for later?</div>
-              <div className={styles.softSaveActions}>
-                <button className={styles.softSaveSkip} onClick={() => setShowSavePrompt(false)}>Continue without saving</button>
-                <button className={styles.softSavePrimary} onClick={() => setSaveStatus('prompt')}>Save my progress</button>
-              </div>
-            </>
-          ) : saveStatus === 'prompt' ? (
-            <div className={styles.saveForm}>
-              <input
-                className={styles.saveInput}
-                value={emailToSave}
-                onChange={(e) => setEmailToSave(e.target.value)}
-                placeholder="Email (optional)"
-              />
-              <div style={{ display: 'flex', gap: 8 }}>
-                <button className={styles.saveBtn} onClick={async () => {
-                  try {
-                    const res = await fetch('/api/save-progress', {
-                      method: 'POST', headers: { 'Content-Type': 'application/json' },
-                      body: JSON.stringify({ email: emailToSave, task, stepsCompleted: index + 1 })
-                    })
-                    if (!res.ok) throw new Error('save failed')
-                    setSaveStatus('saved')
-                    setTimeout(() => setShowSavePrompt(false), 900)
-                  } catch {
-                    // fallback to localStorage
-                    try { localStorage.setItem('focusstep_saved_progress', JSON.stringify({ email: emailToSave, task, stepsCompleted: index + 1, t: Date.now() })) } catch {}
-                    setSaveStatus('saved-local')
-                    setTimeout(() => setShowSavePrompt(false), 900)
-                  }
-                }}>Save</button>
-                <button className={styles.saveCancel} onClick={() => { setSaveStatus(null); setShowSavePrompt(false) }}>Cancel</button>
-              </div>
-            </div>
-          ) : (
-            <div className={styles.saveStatusNote}>{saveStatus === 'saved' ? 'Saved — check your inbox if you provided an email.' : 'Saved locally.'}</div>
-          )}
-        </div>
-      )}
 
       <div className={styles.execPlanToggleRow}>
         <button className={styles.execPlanToggle} onClick={() => setShowPlan((p) => !p)}>
@@ -580,19 +506,11 @@ export function TranslateClient({
   const [limitReached, setLimitReached] = useState(false)
   const [usage, setUsage] = useState<{ used: number; limit: number } | null>(null)
   const [loadingMsg, setLoadingMsg] = useState(0)
-  const [ctaLabel] = useState(CTA_OPTIONS[0])
   const [followUpAnswer, setFollowUpAnswer] = useState('')
   const [showFollowUp, setShowFollowUp] = useState(false)
   const [refined, setRefined] = useState(false)
   const [startMode, setStartMode] = useState(false)
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
-
-  const examplePrompts = useMemo(() => ([
-    'Clean the bathroom',
-    'Tidy the kitchen sink',
-    'Reply to that email',
-    'Answer the unread message',
-  ]), [])
 
   // Fetch usage on mount so circles show before first translation
   useEffect(() => {
@@ -633,17 +551,7 @@ export function TranslateClient({
       const data = await res.json()
       if (res.status === 429) { setLimitReached(true); return }
       if (!res.ok) { setError(data.error ?? 'Something went wrong.'); return }
-      // Normalize the first-step to be ultra-small and action-oriented
-      const normalizeFirst = (s?: string) => {
-        if (!s) return s
-        let t = s.split(/[\.\n]/)[0].trim()
-        t = t.replace(/^to\s+/i, '')
-        t = t.replace(/^you should\s+/i, '')
-        t = t.replace(/^please\s+/i, '')
-        return t
-      }
-      const out = { ...data, startHere: normalizeFirst(data.startHere) }
-      setResult(out)
+      setResult(data)
       setStartMode(true) // auto-enter guided execution mode
       if (data.usage != null) setUsage({ used: data.usage, limit: data.limit })
     } catch {
@@ -724,7 +632,8 @@ export function TranslateClient({
                 <em>a clear first step.</em>
               </h1>
               <p>
-                Paste what feels stuck. FocusStep gives one tiny step to start.
+                Paste what feels stuck. FocusStep turns it into calm,
+                ADHD-friendly steps you can actually start.
               </p>
             </div>
 
@@ -774,7 +683,7 @@ export function TranslateClient({
             <div className={styles.inputCard}>
               <label className={styles.inputLabel}>What&apos;s overwhelming you right now?</label>
               <div className={styles.examplePrompts}>
-                {examplePrompts.map((ex) => (
+                {['Clean the bathroom', 'Reply to that email', 'File my taxes', 'Start the laundry'].map((ex) => (
                   <button
                     key={ex}
                     className={styles.exampleChip}
@@ -803,11 +712,11 @@ export function TranslateClient({
                   onClick={handleTranslate}
                   disabled={loading || !task.trim()}
                 >
-                  {loading ? LOADING_MESSAGES[loadingMsg] : ctaLabel}
+                  {loading ? 'Breaking it down…' : 'Break It Down →'}
                 </button>
               </div>
               <p className={styles.inputReassurance}>
-                Calm, specific steps. No judgment.
+                Calm, specific steps designed for your ADHD brain. No judgment.
               </p>
             </div>
 

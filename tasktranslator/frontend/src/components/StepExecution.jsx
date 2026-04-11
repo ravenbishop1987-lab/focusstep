@@ -1,10 +1,9 @@
 import { useState, useCallback, useEffect } from "react";
 import confetti from "canvas-confetti";
 import { authFetch } from "../lib/api";
+import supabase from "../lib/supabase";
 
 const API_URL = import.meta.env.VITE_API_URL || "";
-const CAPTURE_PROMPT_SHOWN_SESSION_KEY = "focusstep_capture_prompt_shown_session";
-const CAPTURE_SUBMITTED_KEY = "focusstep_capture_submitted";
 
 function parseStep(s) {
   return {
@@ -41,6 +40,7 @@ function shrinkStep(step, depth = 0) {
   return pickByDepth(["Look at the thing", "Move closer", "Touch it", "Lift one finger"]);
 }
 
+// ── Step Card ─────────────────────────────────────────────────────────────────
 function StepCard({ stepNum, totalSteps, action, detail, isIntro, animState, onDone, task, userEmail, onLimitReached }) {
   const [currentAction, setCurrentAction] = useState(action);
   const [queuedSubsteps, setQueuedSubsteps] = useState([]);
@@ -138,7 +138,7 @@ function StepCard({ stepNum, totalSteps, action, detail, isIntro, animState, onD
           {isIntro ? "Start" : "Done"}
         </button>
         <button className="exec-secondary-btn" onClick={() => requestSmallerStep("too-big")} disabled={animState !== "visible" || assistState !== "idle"}>
-          {assistState === "too-big" ? "Breaking it down..." : "Break down this step"}
+          {assistState === "too-big" ? "Making it smaller..." : "Too big"}
         </button>
         <button className="exec-secondary-btn" onClick={() => requestSmallerStep("stuck")} disabled={animState !== "visible" || assistState !== "idle"}>
           {assistState === "stuck" ? "Finding the first move..." : "Still stuck"}
@@ -148,23 +148,8 @@ function StepCard({ stepNum, totalSteps, action, detail, isIntro, animState, onD
   );
 }
 
-function SoftSavePromptCard({ onSave, onDismiss }) {
-  return (
-    <div className="capture-card capture-card--soft-prompt">
-      <p className="capture-headline">You&apos;re moving. Want to save your progress for later?</p>
-      <div className="capture-prompt-actions">
-        <button className="capture-submit" type="button" onClick={onSave}>
-          Save my progress
-        </button>
-        <button className="capture-dismiss" type="button" onClick={onDismiss}>
-          Not now
-        </button>
-      </div>
-    </div>
-  );
-}
-
-function CaptureCard({ onSubmitted }) {
+// ── Email capture card ────────────────────────────────────────────────────────
+function CaptureCard({ onDismiss, onSaved }) {
   const [email, setEmail] = useState("");
   const [status, setStatus] = useState("idle"); // idle | loading | sent | error
 
@@ -172,23 +157,15 @@ function CaptureCard({ onSubmitted }) {
     e.preventDefault();
     const trimmed = email.trim();
     if (!trimmed || status === "loading") return;
-
     setStatus("loading");
     try {
-      const res = await fetch(`${API_URL}/capture-lead`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: trimmed }),
+      const { error } = await supabase.auth.signInWithOtp({
+        email: trimmed,
+        options: { shouldCreateUser: true },
       });
-
-      if (!res.ok) {
-        setStatus("error");
-        return;
-      }
-
-      localStorage.setItem(CAPTURE_SUBMITTED_KEY, "1");
+      if (error) { setStatus("error"); return; }
       setStatus("sent");
-      setTimeout(onSubmitted, 500);
+      setTimeout(onSaved, 900);
     } catch {
       setStatus("error");
     }
@@ -197,14 +174,15 @@ function CaptureCard({ onSubmitted }) {
   if (status === "sent") {
     return (
       <div className="capture-card capture-card--sent">
-        <p className="capture-sent-msg">Saved. You can come back anytime.</p>
+        <p className="capture-sent-msg">Saved ✓ — check your inbox to finish setting up.</p>
       </div>
     );
   }
 
   return (
     <div className="capture-card">
-      <p className="capture-headline">Save your progress</p>
+      <p className="capture-headline">Don't lose this.</p>
+      <p className="capture-sub">We'll remember your steps so you can pick up where you left off.</p>
       <form className="capture-form" onSubmit={handleSubmit}>
         <input
           className="capture-input"
@@ -214,22 +192,26 @@ function CaptureCard({ onSubmitted }) {
           onChange={e => setEmail(e.target.value)}
           autoComplete="email"
           disabled={status === "loading"}
-          required
         />
         <button
           className="capture-submit"
           type="submit"
           disabled={status === "loading" || !email.trim()}
         >
-          {status === "loading" ? "Saving..." : "Save progress"}
+          {status === "loading" ? "Saving…" : "Save and keep going →"}
         </button>
       </form>
-      {status === "error" && <p className="capture-error">Something went wrong. Try again.</p>}
+      {status === "error" && <p className="capture-error">Something went wrong — try again.</p>}
+      <button className="capture-dismiss" type="button" onClick={onDismiss}>
+        Continue without saving
+      </button>
     </div>
   );
 }
 
-function CompletionView({ task, totalSteps, onReset }) {
+// ── Completion ────────────────────────────────────────────────────────────────
+function CompletionView({ task, totalSteps, onReset, user }) {
+  // Confetti on mount
   useEffect(() => {
     const end = Date.now() + 2500;
     const colors = ["#4a7c59", "#a8c5a0", "#f5f3ef", "#ffd700", "#ff6b6b"];
@@ -239,6 +221,34 @@ function CompletionView({ task, totalSteps, onReset }) {
       if (Date.now() < end) requestAnimationFrame(frame);
     })();
   }, []);
+
+  // Decide once at mount whether to show capture
+  const [shouldShowCapture] = useState(() => {
+    if (user) return false;
+    if (sessionStorage.getItem("focusstep_capture_shown")) return false;
+    const n = parseInt(localStorage.getItem("focusstep_capture_dismissals") || "0");
+    if (n >= 3) {
+      const last = parseInt(localStorage.getItem("focusstep_capture_last_dismissed") || "0");
+      if (last && (Date.now() - last) / 86400000 < 3) return false;
+    }
+    return true;
+  });
+
+  const [captureVisible, setCaptureVisible] = useState(false);
+
+  useEffect(() => {
+    if (!shouldShowCapture) return;
+    sessionStorage.setItem("focusstep_capture_shown", "1");
+    const t = setTimeout(() => setCaptureVisible(true), 1500);
+    return () => clearTimeout(t);
+  }, [shouldShowCapture]);
+
+  const handleDismiss = () => {
+    const n = parseInt(localStorage.getItem("focusstep_capture_dismissals") || "0");
+    localStorage.setItem("focusstep_capture_dismissals", String(n + 1));
+    localStorage.setItem("focusstep_capture_last_dismissed", String(Date.now()));
+    setCaptureVisible(false);
+  };
 
   return (
     <div className="exec-complete-wrap">
@@ -253,20 +263,21 @@ function CompletionView({ task, totalSteps, onReset }) {
           Start another task
         </button>
       </div>
+
+      {captureVisible && (
+        <CaptureCard onDismiss={handleDismiss} onSaved={onReset} />
+      )}
     </div>
   );
 }
 
+// ── StepExecution (main) ──────────────────────────────────────────────────────
 export default function StepExecution({ steps, startHere, task, userEmail, taskId, user, onReset, onSignupNeeded }) {
+  // index -1 = intro card (startHere), 0..n-1 = steps
   const [index, setIndex] = useState(-1);
   const [done, setDone] = useState(false);
   const [animState, setAnimState] = useState("visible");
   const [stepsFinished, setStepsFinished] = useState(0);
-  // Added progression tracking and capture visibility state
-  const [completedStepCount, setCompletedStepCount] = useState(0);
-  const [showSavePrompt, setShowSavePrompt] = useState(false);
-  const [showCaptureForm, setShowCaptureForm] = useState(false);
-  const [emailSubmitted, setEmailSubmitted] = useState(() => localStorage.getItem(CAPTURE_SUBMITTED_KEY) === "1");
 
   const totalSteps = steps.length;
   const isIntro = index === -1;
@@ -288,27 +299,15 @@ export default function StepExecution({ steps, startHere, task, userEmail, taskI
     }, 220);
   }, []);
 
-  useEffect(() => {
-    if (user) return;
-    if (emailSubmitted) return;
-    if (completedStepCount < 2) return;
-    if (sessionStorage.getItem(CAPTURE_PROMPT_SHOWN_SESSION_KEY)) return;
-
-    sessionStorage.setItem(CAPTURE_PROMPT_SHOWN_SESSION_KEY, "1");
-    setShowSavePrompt(true);
-  }, [completedStepCount, emailSubmitted, user]);
-
   const handleDone = useCallback(() => {
     if (isGated) { onSignupNeeded?.(); return; }
 
     const nextStepsFinished = isIntro ? stepsFinished : stepsFinished + 1;
-    if (!isIntro) {
-      setStepsFinished(nextStepsFinished);
-      setCompletedStepCount((prev) => prev + 1);
-    }
+    if (!isIntro) setStepsFinished(nextStepsFinished);
 
     const isLastStep = !isIntro && index + 1 >= totalSteps;
 
+    // Persist to backend if user is logged in
     if (user?.id && taskId) {
       if (isLastStep) {
         authFetch(`${API_URL}/user/task-complete`, {
@@ -337,6 +336,7 @@ export default function StepExecution({ steps, startHere, task, userEmail, taskI
         task={task}
         totalSteps={totalSteps}
         onReset={onReset}
+        user={user}
       />
     );
   }
@@ -362,23 +362,6 @@ export default function StepExecution({ steps, startHere, task, userEmail, taskI
         onLimitReached={() => {}}
       />
 
-      {!user && !emailSubmitted && showSavePrompt && !showCaptureForm && (
-        <SoftSavePromptCard
-          onSave={() => setShowCaptureForm(true)}
-          onDismiss={() => setShowSavePrompt(false)}
-        />
-      )}
-
-      {!user && !emailSubmitted && showCaptureForm && (
-        <CaptureCard
-          onSubmitted={() => {
-            setEmailSubmitted(true);
-            setShowCaptureForm(false);
-            setShowSavePrompt(false);
-          }}
-        />
-      )}
-
       {isGated && (
         <p className="exec-gate-hint">
           Sign in free to continue all {totalSteps} steps
@@ -388,3 +371,4 @@ export default function StepExecution({ steps, startHere, task, userEmail, taskI
     </div>
   );
 }
+

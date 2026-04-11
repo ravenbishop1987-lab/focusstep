@@ -52,10 +52,6 @@ export default function App() {
   const navigateTo = useCallback((v) => {
     setView(v);
     if (PERSIST_VIEWS.has(v)) localStorage.setItem("focusstep_view", v);
-    if (window.location.pathname === "/" && ["app", "pricing", "dashboard", "progress"].includes(v)) {
-      const hash = v === "app" ? "" : `#${v}`;
-      window.history.replaceState({}, "", `${window.location.pathname}${hash}`);
-    }
   }, []);
   const [user, setUser] = useState(null);
   const [isPro, setIsPro] = useState(() => localStorage.getItem("focusstep_is_pro") === "true");
@@ -357,9 +353,6 @@ export default function App() {
                     onClick={() => setAccountMenuOpen(false)}
                   />
                   <div className="nav-dropdown-menu" role="menu" aria-label="Account menu">
-                    <button className="nav-dropdown-item" role="menuitem" onClick={() => openView("progress")}>
-                      Progress
-                    </button>
                     {isAdmin && (
                       <a className="nav-dropdown-item nav-dropdown-item-admin" role="menuitem" href="/admin">
                         Admin Panel

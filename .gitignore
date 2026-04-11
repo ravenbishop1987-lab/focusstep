@@ -1,4 +1,20 @@
-﻿node_modules/
-.env
-dist/
-build/
+tasktranslator/backend/.env
+tasktranslator/backend/.env.*
+!tasktranslator/backend/.env.example
+
+tasktranslator/frontend/.env
+tasktranslator/frontend/.env.*
+!tasktranslator/frontend/.env.example
+
+# Generated app build output
+bodydouble/.next/
+bodydouble/public/Translator/
+tasktranslator/frontend/dist/
+
+# Dependency directories
+bodydouble/node_modules/
+tasktranslator/frontend/node_modules/
+tasktranslator/backend/node_modules/
+
+# Logs
+*.log

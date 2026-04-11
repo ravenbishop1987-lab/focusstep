@@ -2812,11 +2812,6 @@ main { flex: 1; padding: 0 16px; }
 }
 
 .progress-page {
-  display: block;
-  position: relative;
-  z-index: 1;
-  overflow: visible;
-  width: 100%;
   padding-bottom: 40px;
 }
 
@@ -4069,16 +4064,6 @@ main { flex: 1; padding: 0 16px; }
   display: flex;
   flex-direction: column;
   gap: 0;
-}
-
-.capture-card--soft-prompt .capture-headline {
-  margin-bottom: 12px;
-}
-
-.capture-prompt-actions {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
 }
 
 .capture-card--sent {

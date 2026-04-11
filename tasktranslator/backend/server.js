@@ -54,7 +54,6 @@ const USE_LOCAL_LM = process.env.USE_LOCAL_LM === 'true';
 const LM_STUDIO_BASE = process.env.LM_STUDIO_URL || 'http://localhost:1234';
 const LM_STUDIO_URL = LM_STUDIO_BASE + '/v1/chat/completions';
 const LM_STUDIO_MODEL = process.env.LM_STUDIO_MODEL || 'local-model';
-const ANTHROPIC_MODEL = process.env.ANTHROPIC_MODEL || 'claude-3-5-haiku-latest';
 const USE_EMBEDDINGS = process.env.USE_EMBEDDINGS === 'true';
 const LM_STUDIO_EMBED_URL = LM_STUDIO_BASE + '/v1/embeddings';
 const LM_STUDIO_EMBED_MODEL = process.env.LM_STUDIO_EMBED_MODEL || 'nomic-ai/nomic-embed-text-v1.5-GGUF';
@@ -89,12 +88,7 @@ async function callAI(systemPrompt, userContent, maxTokens) {
     const json = await res.json();
     return json.choices[0].message.content;
   }
-  const message = await anthropic.messages.create({
-    model: ANTHROPIC_MODEL,
-    max_tokens: maxTokens,
-    system: systemPrompt,
-    messages: [{ role: 'user', content: userContent }]
-  });
+  const message = await anthropic.messages.create({ model: 'claude-haiku-4-5-20251001', max_tokens: maxTokens, system: systemPrompt, messages: [{ role: 'user', content: userContent }] });
   return message.content[0].text;
 }
 
@@ -629,7 +623,7 @@ app.post('/analytics/page-view', async (req, res) => {
 // ── Systeme.io lead capture ───────────────────────────────────────────────────
 app.post('/capture-lead', async (req, res) => {
   const { firstName, email } = req.body || {};
-  if (!email) return res.status(400).json({ error: 'email required' });
+  if (!email || !firstName) return res.status(400).json({ error: 'firstName and email required' });
 
   const apiKey = process.env.SYSTEME_API_KEY;
   if (!apiKey) return res.status(500).json({ error: 'Lead capture not configured' });
@@ -639,8 +633,7 @@ app.post('/capture-lead', async (req, res) => {
       ? process.env.SYSTEME_TAG_IDS.split(',').map(t => parseInt(t.trim(), 10)).filter(Boolean)
       : [];
 
-    const safeFirstName = String(firstName || 'FocusStep User').trim() || 'FocusStep User';
-    const body = { email, fields: [{ slug: 'first_name', value: safeFirstName }] };
+    const body = { email, fields: [{ slug: 'first_name', value: firstName }] };
     if (tagIds.length) body.tagIds = tagIds;
 
     const response = await fetch('https://api.systeme.io/api/contacts', {
