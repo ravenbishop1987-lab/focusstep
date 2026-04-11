@@ -580,32 +580,19 @@ export function TranslateClient({
   const [limitReached, setLimitReached] = useState(false)
   const [usage, setUsage] = useState<{ used: number; limit: number } | null>(null)
   const [loadingMsg, setLoadingMsg] = useState(0)
-  const [ctaLabel] = useState(() => CTA_OPTIONS[Math.floor(Math.random() * CTA_OPTIONS.length)])
+  const [ctaLabel] = useState(CTA_OPTIONS[0])
   const [followUpAnswer, setFollowUpAnswer] = useState('')
   const [showFollowUp, setShowFollowUp] = useState(false)
   const [refined, setRefined] = useState(false)
   const [startMode, setStartMode] = useState(false)
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
-  const examplePrompts = useMemo(() => {
-    const EXAMPLE_POOL = [
-      'Clean the bathroom',
-      'Tidy the kitchen sink',
-      'Reply to that email',
-      'Answer the unread message',
-      'File my taxes',
-      'Start the laundry',
-      'Book the appointment',
-      'Clear the desktop files',
-    ]
-    // pick 4 slightly varied prompts so chips feel dynamic
-    const copy = [...EXAMPLE_POOL]
-    for (let i = copy.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1))
-      ;[copy[i], copy[j]] = [copy[j], copy[i]]
-    }
-    return copy.slice(0, 4)
-  }, [])
+  const examplePrompts = useMemo(() => ([
+    'Clean the bathroom',
+    'Tidy the kitchen sink',
+    'Reply to that email',
+    'Answer the unread message',
+  ]), [])
 
   // Fetch usage on mount so circles show before first translation
   useEffect(() => {
