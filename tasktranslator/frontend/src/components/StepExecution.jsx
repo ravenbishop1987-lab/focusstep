@@ -138,7 +138,7 @@ function StepCard({ stepNum, totalSteps, action, detail, isIntro, animState, onD
           {isIntro ? "Start" : "Done"}
         </button>
         <button className="exec-secondary-btn" onClick={() => requestSmallerStep("too-big")} disabled={animState !== "visible" || assistState !== "idle"}>
-          {assistState === "too-big" ? "Making it smaller..." : "Too big"}
+          {assistState === "too-big" ? "Breaking it down..." : "Break down this step"}
         </button>
         <button className="exec-secondary-btn" onClick={() => requestSmallerStep("stuck")} disabled={animState !== "visible" || assistState !== "idle"}>
           {assistState === "stuck" ? "Finding the first move..." : "Still stuck"}
