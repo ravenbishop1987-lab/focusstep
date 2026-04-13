@@ -192,7 +192,47 @@ function HistoryView({ entries, emptyMsg, isFavorited, toggleFavorite, userEmail
   );
 }
 
-export default function Translator({ onUpgrade, onSignupNeeded, user, isPro, plan, history, favorites, addToHistory, toggleFavorite, isFavorited, subView, setSubView, deleteHistory, deleteFavorite, clearAllHistory, clearAllFavorites }) {
+function LeadCaptureModal({ email, onEmailChange, onClose, onSubmit, onOpenPricing, loading, error, success }) {
+  return (
+    <div className="modal-backdrop" onClick={onClose}>
+      <div className="auth-modal lead-capture-modal" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-labelledby="lead-capture-title">
+        <button className="modal-close" onClick={onClose} aria-label="Close">Close</button>
+        <div className="lead-capture-badge">One free translation used</div>
+        <h2 id="lead-capture-title" className="auth-headline">Want more translations?</h2>
+        <p className="auth-sub">Upgrade to get unstuck faster. Leave your email and we&apos;ll keep the next step easy.</p>
+
+        {success ? (
+          <div className="lead-capture-success">
+            <p>Thanks. Your email is saved, and your upgrade path is ready.</p>
+            <button className="upgrade-btn-primary" onClick={onOpenPricing}>See plans</button>
+          </div>
+        ) : (
+          <>
+            <input
+              className="auth-email-input lead-capture-input"
+              type="email"
+              placeholder="you@example.com"
+              value={email}
+              onChange={(event) => onEmailChange(event.target.value)}
+              autoComplete="email"
+              autoFocus
+            />
+            {error && <p className="auth-error">{error}</p>}
+            <div className="lead-capture-actions">
+              <button className="upgrade-btn-primary" onClick={onSubmit} disabled={loading || !email.trim()}>
+                {loading ? "Saving..." : "Save email and continue"}
+              </button>
+              <button className="upgrade-link" onClick={onOpenPricing}>Skip to pricing</button>
+            </div>
+            <p className="lead-capture-note">Calm support, no spammy pressure.</p>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+export default function Translator({ onUpgrade, onSignupNeeded, onLeadCaptured, onOpenPricing, user, isPro, plan, history, favorites, addToHistory, toggleFavorite, isFavorited, subView, setSubView, deleteHistory, deleteFavorite, clearAllHistory, clearAllFavorites }) {
   const userEmail = user?.email || "";
   const [task, setTask] = useState("");
   const [result, setResult] = useState(null);
@@ -203,6 +243,11 @@ export default function Translator({ onUpgrade, onSignupNeeded, user, isPro, pla
   const [loadingMsg, setLoadingMsg] = useState(0);
   const [startMode, setStartMode] = useState(false);
   const [currentTaskId, setCurrentTaskId] = useState(null);
+  const [leadModalOpen, setLeadModalOpen] = useState(false);
+  const [leadEmail, setLeadEmail] = useState("");
+  const [leadLoading, setLeadLoading] = useState(false);
+  const [leadError, setLeadError] = useState("");
+  const [leadSaved, setLeadSaved] = useState(false);
   const intervalRef = useRef(null);
   const textareaRef = useRef(null);
 
@@ -214,6 +259,31 @@ export default function Translator({ onUpgrade, onSignupNeeded, user, isPro, pla
   const handleExampleClick = (example) => {
     setTask(example);
     textareaRef.current?.focus();
+  };
+
+  const handleLeadSubmit = async () => {
+    const trimmed = leadEmail.trim();
+    if (!trimmed) return;
+    setLeadLoading(true);
+    setLeadError("");
+    try {
+      const res = await fetch(`${API_URL}/capture-lead`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: trimmed }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setLeadError(data.error || "Could not save your email just now.");
+        return;
+      }
+      setLeadSaved(true);
+      onLeadCaptured?.(trimmed);
+    } catch {
+      setLeadError("Could not save your email just now.");
+    } finally {
+      setLeadLoading(false);
+    }
   };
 
   const handleTranslate = async () => {
@@ -246,6 +316,12 @@ export default function Translator({ onUpgrade, onSignupNeeded, user, isPro, pla
       if (!res.ok) { setError(data.error || "Something went wrong."); return; }
       setResult(data);
       setStartMode(true); // auto-enter execution mode
+      if (!user && !isPro && data.limit === 1 && data.usage === 1) {
+        setLeadEmail((prev) => prev || userEmail || "");
+        setLeadSaved(false);
+        setLeadError("");
+        setLeadModalOpen(true);
+      }
       if (addToHistory) {
         const entry = await addToHistory(task, data);
         if (entry?.id) setCurrentTaskId(entry.id);
@@ -268,8 +344,8 @@ export default function Translator({ onUpgrade, onSignupNeeded, user, isPro, pla
 
 {!isPro && usage && remaining !== null && remaining <= 2 && (
         <p className="usage-nudge">
-          {remaining === 0 ? "No free tasks left today" : `${remaining} free task${remaining === 1 ? "" : "s"} left today`}
-          {" · "}<button className="upgrade-link" onClick={onUpgrade}>Go Pro</button>
+          {remaining === 0 ? "No free translations left today" : `${remaining} free translation${remaining === 1 ? "" : "s"} left today`}
+          {" · "}<button className="upgrade-link" onClick={onUpgrade}>See plans</button>
         </p>
       )}
 
@@ -333,7 +409,7 @@ export default function Translator({ onUpgrade, onSignupNeeded, user, isPro, pla
             </button>
             {loading
               ? <p className="loading-hint">{LOADING_MESSAGES[loadingMsg]}</p>
-              : <p className="input-micro">No signup. Just start.</p>
+              : <p className="input-micro">One free translation each day. Just start.</p>
             }
           </div>
 
@@ -344,17 +420,17 @@ export default function Translator({ onUpgrade, onSignupNeeded, user, isPro, pla
 
           {limitReached && !loading && (
             <div className="limit-reached">
-              <h3>You&apos;ve used your 3 free tasks for today</h3>
+              <h3>You&apos;ve used your free translation for today</h3>
               {user ? (
                 <>
-                  <p>You started. That matters. Want help finishing too? Upgrade for more support.</p>
-                  <button className="upgrade-btn-primary" onClick={onUpgrade}>Start Finishing Tasks</button>
+                  <p>You started. That matters. Upgrade for more support and keep going while the momentum is there.</p>
+                  <button className="upgrade-btn-primary" onClick={onUpgrade}>See upgrade options</button>
                 </>
               ) : (
                 <>
-                  <p>Create a free account or upgrade to Pro if you want more support right now.</p>
-                  <button className="upgrade-btn-primary" onClick={() => onSignupNeeded("limit")}>Keep going</button>
-                  <button className="upgrade-link" style={{ marginTop: "8px" }} onClick={onUpgrade}>Or see Pro plans</button>
+                  <p>Want more help today? Leave your email or jump straight to the paid plans.</p>
+                  <button className="upgrade-btn-primary" onClick={() => setLeadModalOpen(true)}>Get more translations</button>
+                  <button className="upgrade-link" style={{ marginTop: "8px" }} onClick={onUpgrade}>Or see all plans</button>
                 </>
               )}
             </div>
@@ -383,9 +459,23 @@ export default function Translator({ onUpgrade, onSignupNeeded, user, isPro, pla
         />
       )}
 
+      {leadModalOpen && !user && (
+        <LeadCaptureModal
+          email={leadEmail}
+          onEmailChange={setLeadEmail}
+          onClose={() => setLeadModalOpen(false)}
+          onSubmit={handleLeadSubmit}
+          onOpenPricing={() => {
+            if (leadEmail.trim()) onLeadCaptured?.(leadEmail.trim());
+            setLeadModalOpen(false);
+            onOpenPricing?.();
+          }}
+          loading={leadLoading}
+          error={leadError}
+          success={leadSaved}
+        />
+      )}
+
     </div>
   );
 }
-
-
-

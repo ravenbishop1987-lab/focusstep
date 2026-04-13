@@ -62,6 +62,15 @@ const SIMILARITY_THRESHOLD = parseFloat(process.env.SIMILARITY_THRESHOLD || '0.8
 const anthropic = USE_LOCAL_LM ? null : new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
+const CONFIG = {
+  FREE_DAILY_LIMIT: 1,
+  PLUS_DAILY_LIMIT: 3,
+  PLANS: {
+    FREE: 'free',
+    PLUS: 'plus',
+    UNLIMITED: 'unlimited',
+  },
+};
 const ADMIN_EMAILS = new Set(
   (process.env.ADMIN_EMAILS || '')
     .split(',')
@@ -75,6 +84,21 @@ if (USE_EMBEDDINGS) console.log(`[EMBEDDINGS] Semantic search enabled — model=
 function hashIp(ip) {
   const salt = process.env.IP_HASH_SALT || '';
   return crypto.createHash('sha256').update(`${salt}:${String(ip || 'unknown')}`).digest('hex').substring(0, 16);
+}
+
+function normalizeStoredCustomerPlan(plan) {
+  if (!plan) return CONFIG.PLANS.FREE;
+  if (plan === 'plus' || plan === 'monthly_3') return CONFIG.PLANS.PLUS;
+  if (plan === 'unlimited' || plan === 'monthly_unlimited') return CONFIG.PLANS.UNLIMITED;
+  if (plan === 'monthly' || plan === 'pro' || plan === 'lifetime') return CONFIG.PLANS.UNLIMITED;
+  return CONFIG.PLANS.FREE;
+}
+
+function getDailyLimitForPlan(plan) {
+  const normalized = normalizeStoredCustomerPlan(plan);
+  if (normalized === CONFIG.PLANS.FREE) return CONFIG.FREE_DAILY_LIMIT;
+  if (normalized === CONFIG.PLANS.PLUS) return CONFIG.PLUS_DAILY_LIMIT;
+  return null;
 }
 
 async function callAI(systemPrompt, userContent, maxTokens) {
@@ -92,7 +116,6 @@ async function callAI(systemPrompt, userContent, maxTokens) {
   return message.content[0].text;
 }
 
-const FREE_LIMIT = 3;
 const usageMap = new Map();
 
 setInterval(() => {
@@ -107,42 +130,49 @@ function checkRateLimit(ip) { return usageMap.get(getRateLimitKey(ip)) || 0; }
 function incrementUsage(ip) { const key = getRateLimitKey(ip); usageMap.set(key, (usageMap.get(key) || 0) + 1); }
 
 async function getProStatus(email) {
-  if (!email) return { isPro: false, plan: null };
-  const { data, error } = await supabase.from('users').select('plan').eq('email', email).single();
-  if (error || !data) return { isPro: false, plan: null };
-  const plan = data.plan || 'free';
-  // Map unified plan names back to Task Translator convention for callers
-  const legacyPlan = plan === 'pro' ? 'monthly' : plan === 'lifetime' ? 'lifetime' : null;
-  return { isPro: plan !== 'free', plan: legacyPlan };
+  if (!email) return { isPro: false, plan: CONFIG.PLANS.FREE, limit: CONFIG.FREE_DAILY_LIMIT };
+
+  const { data: customer } = await supabase
+    .from('customers')
+    .select('plan, is_pro')
+    .eq('email', email)
+    .maybeSingle();
+
+  if (customer?.plan || customer?.is_pro != null) {
+    const plan = customer?.is_pro === false ? CONFIG.PLANS.FREE : normalizeStoredCustomerPlan(customer?.plan);
+    return { isPro: plan !== CONFIG.PLANS.FREE, plan, limit: getDailyLimitForPlan(plan) };
+  }
+
+  const { data } = await supabase.from('users').select('plan').eq('email', email).maybeSingle();
+  const plan = normalizeStoredCustomerPlan(data?.plan);
+  return { isPro: plan !== CONFIG.PLANS.FREE, plan, limit: getDailyLimitForPlan(plan) };
 }
 
 // Trust the plan forwarded by the bodydouble Next.js proxy (verified via shared Supabase service role key)
 function getProStatusFromProxy(req) {
   const secret = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!secret || req.headers['x-proxy-secret'] !== secret) return null;
-  const plan = req.headers['x-user-plan'] || 'free';
-  const legacyPlan = plan === 'pro' ? 'monthly' : plan === 'lifetime' ? 'lifetime' : null;
-  return { isPro: plan !== 'free', plan: legacyPlan };
+  const plan = normalizeStoredCustomerPlan(req.headers['x-user-plan'] || CONFIG.PLANS.FREE);
+  return { isPro: plan !== CONFIG.PLANS.FREE, plan, limit: getDailyLimitForPlan(plan) };
 }
 
 async function upsertCustomer(email, fields) {
-  // Map from Task Translator field names to unified users schema
   const mapped = {};
   if ('plan' in fields) {
-    // 'monthly' (Task Translator) → 'pro' (unified); 'lifetime' stays
-    mapped.plan = fields.plan === 'monthly' ? 'pro' : (fields.plan || 'free');
+    mapped.plan = normalizeStoredCustomerPlan(fields.plan);
+    mapped.is_pro = mapped.plan !== CONFIG.PLANS.FREE;
   }
   if ('is_pro' in fields && !('plan' in fields)) {
-    mapped.plan = fields.is_pro ? 'pro' : 'free';
+    mapped.is_pro = !!fields.is_pro;
   }
   if (fields.stripe_customer_id !== undefined) mapped.stripe_customer_id = fields.stripe_customer_id;
+  if (fields.stripe_session_id !== undefined) mapped.stripe_session_id = fields.stripe_session_id;
   if (fields.pro_expires_at !== undefined) mapped.pro_expires_at = fields.pro_expires_at;
   if (fields.referral_code !== undefined) mapped.referral_code = fields.referral_code;
   if (fields.referred_by !== undefined) mapped.referred_by = fields.referred_by;
   if (fields.full_name !== undefined) mapped.full_name = fields.full_name;
-  // stripe_session_id has no equivalent in unified users table — omit it
 
-  const { error } = await supabase.from('users').upsert(
+  const { error } = await supabase.from('customers').upsert(
     { email, ...mapped },
     { onConflict: 'email' }
   );
@@ -469,17 +499,17 @@ function getClientIp(req) {
     || 'unknown';
 }
 
-function rateLimitCheck(ip, isPro, res) {
-  if (isPro) return true;
-  if (checkRateLimit(ip) >= FREE_LIMIT) {
-    res.status(429).json({ error: 'Daily limit reached', limitReached: true, usage: checkRateLimit(ip), limit: FREE_LIMIT });
+function rateLimitCheck(ip, limit, res) {
+  if (limit == null) return true;
+  if (checkRateLimit(ip) >= limit) {
+    res.status(429).json({ error: 'Daily limit reached', limitReached: true, usage: checkRateLimit(ip), limit });
     return false;
   }
   return true;
 }
 
-function usagePayload(ip, isPro) {
-  return { usage: isPro ? null : checkRateLimit(ip), limit: isPro ? null : FREE_LIMIT };
+function usagePayload(ip, limit) {
+  return { usage: limit == null ? null : checkRateLimit(ip), limit };
 }
 
 // Translate
@@ -488,7 +518,7 @@ app.post('/translate', optionalAuth, async (req, res) => {
   const { task, email: bodyEmail } = req.body;
   const email = req.authUser?.email ?? bodyEmail;
   if (!task || typeof task !== 'string' || task.trim().length < 3) return res.status(400).json({ error: 'Please enter a task to translate.' });
-  const { isPro } = getProStatusFromProxy(req) ?? await getProStatus(email);
+  const status = getProStatusFromProxy(req) ?? await getProStatus(email);
   try {
     const moderation = await moderateTaskInput(task.trim());
     if (!moderation.allow) {
@@ -501,9 +531,9 @@ app.post('/translate', optionalAuth, async (req, res) => {
     const { result, fromCache, notCached, parseError } = await runCached('translate', { task: task.trim() }, SYSTEM_PROMPT, 'Task: ' + task.trim(), 900, p => { if (p.steps?.length > 5) p.steps = p.steps.slice(0, 5); });
     if (notCached) return res.status(404).json({ error: 'Not in database yet. Start LM Studio to generate and cache this task.' });
     if (parseError || result === null) return res.status(503).json({ error: 'Could not understand the AI response — please try again.' });
-    if (!rateLimitCheck(ip, isPro, res)) return;
-    if (!isPro) incrementUsage(ip);
-    res.json({ ...result, isPro, fromCache, ...usagePayload(ip, isPro) });
+    if (!rateLimitCheck(ip, status.limit, res)) return;
+    if (status.limit != null) incrementUsage(ip);
+    res.json({ ...result, isPro: status.isPro, plan: status.plan, fromCache, ...usagePayload(ip, status.limit) });
     if (!fromCache) prewarmRelated(task.trim());
   } catch (err) { console.error('Translate error:', err.message); res.status(500).json({ error: 'Translation failed. Please try again.' }); }
 });
@@ -514,14 +544,14 @@ app.post('/refine', optionalAuth, async (req, res) => {
   const { task, question, answer, email: bodyEmail } = req.body;
   const email = req.authUser?.email ?? bodyEmail;
   if (!task || !answer) return res.status(400).json({ error: 'Task and answer required.' });
-  const { isPro } = getProStatusFromProxy(req) ?? await getProStatus(email);
+  const status = getProStatusFromProxy(req) ?? await getProStatus(email);
   try {
     const content = `Original task: ${task.trim()}\nFollow-up question: ${question}\nUser answer: ${answer.trim()}`;
     const { result, fromCache, parseError } = await runCached('refine', { task: task.trim(), question, answer: answer.trim() }, REFINE_PROMPT, content, 900, p => { if (p.steps?.length > 5) p.steps = p.steps.slice(0, 5); });
     if (parseError || result === null) return res.status(503).json({ error: 'Could not understand the AI response — please try again.' });
-    if (!rateLimitCheck(ip, isPro, res)) return;
-    if (!isPro) incrementUsage(ip);
-    res.json({ ...result, isPro, fromCache, ...usagePayload(ip, isPro) });
+    if (!rateLimitCheck(ip, status.limit, res)) return;
+    if (status.limit != null) incrementUsage(ip);
+    res.json({ ...result, isPro: status.isPro, plan: status.plan, fromCache, ...usagePayload(ip, status.limit) });
   } catch (err) { console.error('Refine error:', err.message); res.status(500).json({ error: 'Refinement failed.' }); }
 });
 
@@ -531,7 +561,7 @@ app.post('/help-step', optionalAuth, async (req, res) => {
   const { task, stepAction, stepDetail, question, email: bodyEmail } = req.body;
   const email = req.authUser?.email ?? bodyEmail;
   if (!task || !stepAction) return res.status(400).json({ error: 'Task and step required.' });
-  const { isPro } = getProStatusFromProxy(req) ?? await getProStatus(email);
+  const status = getProStatusFromProxy(req) ?? await getProStatus(email);
   try {
     const parts = ['Overall task: ' + task, 'Step: ' + stepAction];
     if (stepDetail) parts.push('Step detail: ' + stepDetail);
@@ -549,9 +579,9 @@ app.post('/help-step', optionalAuth, async (req, res) => {
       }
     });
     if (parseError || result === null) return res.status(503).json({ error: 'Could not understand the AI response — please try again.' });
-    if (!fromCache && !rateLimitCheck(ip, isPro, res)) return;
-    if (!fromCache && !isPro) incrementUsage(ip);
-    res.json({ ...result, isPro, fromCache });
+    if (!fromCache && !rateLimitCheck(ip, status.limit, res)) return;
+    if (!fromCache && status.limit != null) incrementUsage(ip);
+    res.json({ ...result, isPro: status.isPro, plan: status.plan, fromCache, ...usagePayload(ip, status.limit) });
   } catch (err) { console.error('Help step error:', err.message); res.status(500).json({ error: 'Could not get help. Please try again.' }); }
 });
 
@@ -569,14 +599,15 @@ app.get('/cache-stats', async (_req, res) => {
 
 app.get('/pro-status', requireAuth, async (req, res) => {
   const email = req.authUser.email;
-  const { isPro, plan } = await getProStatus(email);
-  res.json({ isPro, plan });
+  const { isPro, plan, limit } = await getProStatus(email);
+  res.json({ isPro, plan, limit });
 });
 
 // Usage
-app.get('/usage', (req, res) => {
+app.get('/usage', optionalAuth, async (req, res) => {
   const ip = getClientIp(req);
-  res.json({ usage: checkRateLimit(ip), limit: FREE_LIMIT });
+  const status = req.authUser?.email ? await getProStatus(req.authUser.email) : { limit: CONFIG.FREE_DAILY_LIMIT };
+  res.json({ usage: status.limit == null ? null : checkRateLimit(ip), limit: status.limit });
 });
 
 app.post('/analytics/page-view', async (req, res) => {
@@ -623,7 +654,7 @@ app.post('/analytics/page-view', async (req, res) => {
 // ── Systeme.io lead capture ───────────────────────────────────────────────────
 app.post('/capture-lead', async (req, res) => {
   const { firstName, email } = req.body || {};
-  if (!email || !firstName) return res.status(400).json({ error: 'firstName and email required' });
+  if (!email) return res.status(400).json({ error: 'email required' });
 
   const apiKey = process.env.SYSTEME_API_KEY;
   if (!apiKey) return res.status(500).json({ error: 'Lead capture not configured' });
@@ -633,7 +664,12 @@ app.post('/capture-lead', async (req, res) => {
       ? process.env.SYSTEME_TAG_IDS.split(',').map(t => parseInt(t.trim(), 10)).filter(Boolean)
       : [];
 
-    const body = { email, fields: [{ slug: 'first_name', value: firstName }] };
+    const inferredFirstName = String(firstName || '')
+      .trim()
+      || String(email).split('@')[0].replace(/[._-]+/g, ' ').trim().slice(0, 40)
+      || 'FocusStep friend';
+
+    const body = { email, fields: [{ slug: 'first_name', value: inferredFirstName }] };
     if (tagIds.length) body.tagIds = tagIds;
 
     const response = await fetch('https://api.systeme.io/api/contacts', {
@@ -674,16 +710,16 @@ app.post('/billing-portal', requireAuth, async (req, res) => {
 // Create checkout
 app.post('/create-checkout', async (req, res) => {
   const { plan, email } = req.body;
-  if (!plan || !['monthly', 'lifetime'].includes(plan)) return res.status(400).json({ error: 'Invalid plan.' });
+  if (!plan || ![CONFIG.PLANS.PLUS, CONFIG.PLANS.UNLIMITED].includes(plan)) return res.status(400).json({ error: 'Invalid plan.' });
   const baseUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
   try {
     let sessionConfig = { customer_email: email || undefined, metadata: { plan }, success_url: baseUrl + '/success?session_id={CHECKOUT_SESSION_ID}', cancel_url: baseUrl + '/pricing' };
-    if (plan === 'monthly') {
+    if (plan === CONFIG.PLANS.PLUS) {
       sessionConfig.mode = 'subscription';
-      sessionConfig.line_items = [{ price_data: { currency: 'usd', product_data: { name: 'FocusStep Pro', description: 'Unlimited ADHD task translations' }, unit_amount: 900, recurring: { interval: 'month' } }, quantity: 1 }];
+      sessionConfig.line_items = [{ price_data: { currency: 'usd', product_data: { name: 'FocusStep Plus', description: 'Three ADHD-friendly translations per day' }, unit_amount: 900, recurring: { interval: 'month' } }, quantity: 1 }];
     } else {
-      sessionConfig.mode = 'payment';
-      sessionConfig.line_items = [{ price_data: { currency: 'usd', product_data: { name: 'FocusStep Lifetime', description: 'One-time payment, use forever' }, unit_amount: 3900 }, quantity: 1 }];
+      sessionConfig.mode = 'subscription';
+      sessionConfig.line_items = [{ price_data: { currency: 'usd', product_data: { name: 'FocusStep Unlimited', description: 'Unlimited ADHD-friendly translations per day' }, unit_amount: 1900, recurring: { interval: 'month' } }, quantity: 1 }];
     }
     const session = await stripe.checkout.sessions.create(sessionConfig);
     res.json({ url: session.url });
@@ -784,9 +820,8 @@ async function issueProDays(recipientEmail, daysToAdd, adminEmail = null) {
 }
 
 async function processReferralReward(email, plan, amount, externalPaymentId) {
-  // Accept both unified ('pro') and legacy ('monthly') plan names
-  const normalizedPlan = plan === 'pro' ? 'monthly' : plan;
-  if (!externalPaymentId || !['monthly', 'lifetime'].includes(normalizedPlan) || !Number.isFinite(amount) || amount <= 0) {
+  const normalizedPlan = normalizeStoredCustomerPlan(plan);
+  if (!externalPaymentId || ![CONFIG.PLANS.PLUS, CONFIG.PLANS.UNLIMITED].includes(normalizedPlan) || !Number.isFinite(amount) || amount <= 0) {
     return;
   }
   plan = normalizedPlan;
@@ -796,7 +831,7 @@ async function processReferralReward(email, plan, amount, externalPaymentId) {
   if (existingPayment) return;
 
   // Record payment
-  await supabase.from('payments').insert({ email, plan_type: plan, amount, billing_type: plan === 'lifetime' ? 'one_time' : 'subscription', payment_status: 'succeeded', external_payment_id: externalPaymentId });
+  await supabase.from('payments').insert({ email, plan_type: plan, amount, billing_type: 'subscription', payment_status: 'succeeded', external_payment_id: externalPaymentId });
 
   // Check if referred
   const { data: customer } = await supabase.from('users').select('referred_by, plan').eq('email', email).maybeSingle();
@@ -834,7 +869,7 @@ async function processReferralReward(email, plan, amount, externalPaymentId) {
   // Map unified plan ('pro') to legacy reward rule key ('monthly')
   const referrerPlan = referrer.plan === 'lifetime' ? 'lifetime' : (referrer.plan === 'monthly' || referrer.plan === 'pro') ? 'monthly' : 'free';
   const now = new Date().toISOString();
-  const rule = await matchRewardRule(referrerPlan, plan);
+  const rule = await matchRewardRule(referrerPlan, 'monthly');
 
   // Update referral to converted
   await supabase.from('referrals').update({ status: 'converted', converted_at: now, purchased_plan: plan, purchase_amount: amount, updated_at: now }).eq('id', referral.id);
@@ -995,13 +1030,16 @@ app.post('/webhook', async (req, res) => {
     if (event.type === 'checkout.session.completed') {
       const session = event.data.object;
       const email = session.customer_email || session.customer_details?.email;
-      const plan = session.metadata?.plan || 'monthly';
+      const plan = normalizeStoredCustomerPlan(session.metadata?.plan || CONFIG.PLANS.PLUS);
       const amount = (session.amount_total || 0) / 100;
       if (email) {
-        await upsertCustomer(email, { is_pro: true, plan, stripe_customer_id: session.customer, stripe_session_id: session.id });
+        await upsertCustomer(email, { plan, stripe_customer_id: session.customer, stripe_session_id: session.id });
         await processReferralReward(email, plan, amount, session.id);
       }
-    } else if (event.type === 'customer.subscription.deleted' || event.type === 'invoice.payment_failed') {
+    } else if (event.type === 'customer.subscription.deleted') {
+      const customer = await stripe.customers.retrieve(event.data.object.customer);
+      if (customer.email) await upsertCustomer(customer.email, { plan: CONFIG.PLANS.FREE });
+    } else if (event.type === 'invoice.payment_failed') {
       const customer = await stripe.customers.retrieve(event.data.object.customer);
       if (customer.email) await upsertCustomer(customer.email, { is_pro: false });
     } else if (event.type === 'invoice.payment_succeeded' && event.data.object.billing_reason === 'subscription_cycle') {

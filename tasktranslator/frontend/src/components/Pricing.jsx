@@ -3,9 +3,9 @@ import { authFetch } from "../lib/api";
 
 const API_URL = import.meta.env.VITE_API_URL || "";
 
-export default function Pricing({ onBack, userEmail, isPro }) {
+export default function Pricing({ onBack, userEmail, isPro, plan }) {
   const [loading, setLoading] = useState(null);
-  const [openPlan, setOpenPlan] = useState(isPro ? "pro" : "free");
+  const [openPlan, setOpenPlan] = useState(isPro ? (plan || "plus") : "free");
   const [isMobile, setIsMobile] = useState(() =>
     typeof window !== "undefined" ? window.matchMedia("(max-width: 600px)").matches : true
   );
@@ -93,7 +93,7 @@ export default function Pricing({ onBack, userEmail, isPro }) {
             aria-controls="plan-free-content"
           >
             <div>
-              <div className="plan-name">Start Small</div>
+              <div className="plan-name">Free</div>
               <div className="plan-price">$0 <span>/ forever</span></div>
             </div>
             {isMobile && (
@@ -105,52 +105,90 @@ export default function Pricing({ onBack, userEmail, isPro }) {
 
           {(!isMobile || openPlan === "free") && (
             <div id="plan-free-content" className="plan-card-content">
-              <div className="plan-desc">Quick relief when a task feels too big</div>
+              <div className="plan-desc">A soft place to start when your task feels too loud</div>
               <ul className="plan-features">
-                <li>Get help when a task feels too big</li>
-                <li>Turn "I can't do this" into one simple next step</li>
-                <li>Try 3 task breakdowns each day</li>
-                <li>Best if you want quick relief without pressure</li>
+                <li>1 translation per day</li>
+                <li>Turn "I can&apos;t do this" into one calmer next step</li>
+                <li>No signup required to try it</li>
+                <li>Best if you want a light daily reset</li>
               </ul>
               <button className="plan-btn cta" onClick={onBack}>Start Free</button>
             </div>
           )}
         </div>
 
-        <div className={`plan-card plan-card-accordion featured ${(!isMobile || openPlan === "pro") ? "plan-card-open" : ""}`}>
+        <div className={`plan-card plan-card-accordion featured ${(!isMobile || openPlan === "plus") ? "plan-card-open" : ""}`}>
           <button
             className="plan-card-toggle"
-            onClick={() => isMobile && setOpenPlan("pro")}
-            aria-expanded={!isMobile || openPlan === "pro"}
-            aria-controls="plan-pro-content"
+            onClick={() => isMobile && setOpenPlan("plus")}
+            aria-expanded={!isMobile || openPlan === "plus"}
+            aria-controls="plan-plus-content"
           >
             <div>
-              <div className="plan-name">Keep Going</div>
+              <div className="plan-name">Plus</div>
               <div className="plan-price">$9 <span>/ month</span></div>
             </div>
             {isMobile && (
-              <span className={`plan-card-chevron ${openPlan === "pro" ? "open" : ""}`} aria-hidden="true">
+              <span className={`plan-card-chevron ${openPlan === "plus" ? "open" : ""}`} aria-hidden="true">
                 +
               </span>
             )}
           </button>
 
-          {(!isMobile || openPlan === "pro") && (
-            <div id="plan-pro-content" className="plan-card-content">
-              <div className="plan-desc">More support when you do not want to keep restarting</div>
+          {(!isMobile || openPlan === "plus") && (
+            <div id="plan-plus-content" className="plan-card-content">
+              <div className="plan-desc">More breathing room when one free translation is not enough</div>
               <ul className="plan-features">
-                <li>Get unstuck as often as you need during the month</li>
-                <li>Stay with tasks longer instead of giving up halfway</li>
-                <li>Save the plans that help so you do not start over</li>
-                <li>Get help faster when your focus is slipping</li>
-                <li>Best if you want steadier support</li>
+                <li>3 translations per day</li>
+                <li>Priority response speed</li>
+                <li>Save favorite translations</li>
+                <li>Best if you want steady support without going all-in</li>
               </ul>
               <button
                 className="plan-btn cta"
-                onClick={() => handleCheckout("monthly")}
-                disabled={loading === "monthly" || isPro}
+                onClick={() => handleCheckout("plus")}
+                disabled={loading === "plus" || plan === "plus"}
               >
-                {isPro ? "Current plan" : loading === "monthly" ? "Redirecting..." : "Get More Support"}
+                {plan === "plus" ? "Current plan" : loading === "plus" ? "Redirecting..." : "Choose Plus"}
+              </button>
+            </div>
+          )}
+        </div>
+
+        <div className={`plan-card plan-card-accordion ${(!isMobile || openPlan === "unlimited") ? "plan-card-open" : ""}`}>
+          <button
+            className="plan-card-toggle"
+            onClick={() => isMobile && setOpenPlan("unlimited")}
+            aria-expanded={!isMobile || openPlan === "unlimited"}
+            aria-controls="plan-unlimited-content"
+          >
+            <div>
+              <div className="plan-name">Unlimited</div>
+              <div className="plan-price">$19 <span>/ month</span></div>
+            </div>
+            {isMobile && (
+              <span className={`plan-card-chevron ${openPlan === "unlimited" ? "open" : ""}`} aria-hidden="true">
+                +
+              </span>
+            )}
+          </button>
+
+          {(!isMobile || openPlan === "unlimited") && (
+            <div id="plan-unlimited-content" className="plan-card-content">
+              <div className="plan-desc">For the days when you need as many fresh starts as it takes</div>
+              <ul className="plan-features">
+                <li>Unlimited translations per day</li>
+                <li>Everything in Pro</li>
+                <li>Full translation history</li>
+                <li>Advanced insights</li>
+                <li>Best if FocusStep is part of your daily toolkit</li>
+              </ul>
+              <button
+                className="plan-btn cta"
+                onClick={() => handleCheckout("unlimited")}
+                disabled={loading === "unlimited" || plan === "unlimited"}
+              >
+                {plan === "unlimited" ? "Current plan" : loading === "unlimited" ? "Redirecting..." : "Choose Unlimited"}
               </button>
             </div>
           )}
@@ -158,7 +196,7 @@ export default function Pricing({ onBack, userEmail, isPro }) {
       </div>
 
       <p className="pricing-note">
-        Secured by Stripe. Cancel anytime in the billing portal.{" "}
+        Secured by Stripe. Both paid plans are monthly and can be canceled anytime in the billing portal.{" "}
         <a href="mailto:hello@focusstepadhd.com" style={{ color: "var(--accent-dark)" }}>
           hello@focusstepadhd.com
         </a>

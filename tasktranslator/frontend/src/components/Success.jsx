@@ -14,7 +14,7 @@ export default function Success({ onContinue }) {
         <div className="success-icon">◎</div>
         <h1>You're all set.</h1>
         <p>
-          Pro access is now active. No daily limits. Break down as many tasks as you need.
+          Your paid plan is now active. Come back anytime you need a calmer next step.
         </p>
         <p className="success-sub">
           A confirmation email is on its way{dots}
@@ -26,4 +26,3 @@ export default function Success({ onContinue }) {
     </div>
   );
 }
-

@@ -43,7 +43,12 @@ export default function UserDashboard({ user, isPro, plan, onSignupNeeded, onOpe
   }, [loadSummary]);
 
   const firstName = useMemo(() => user?.email?.split("@")[0] || "You", [user]);
-  const planLabel = plan === "lifetime" ? "Lifetime" : plan === "monthly" ? "Pro Monthly" : "Free";
+  const planLabel =
+    plan === "unlimited" ? "Unlimited"
+      : plan === "plus" ? "Plus"
+        : plan === "lifetime" ? "Lifetime"
+          : plan === "monthly" ? "Unlimited"
+            : "Free";
 
   const handleManageBilling = useCallback(async () => {
     setBillingLoading(true);
@@ -106,8 +111,8 @@ export default function UserDashboard({ user, isPro, plan, onSignupNeeded, onOpe
     );
   }
 
-  const accessLabel = isPro ? "Unlimited" : "3 tasks/day";
-  const billingLabel = plan === "monthly" ? "Subscription" : plan === "lifetime" ? "One-time" : "Not started";
+  const accessLabel = plan === "plus" ? "3 translations/day" : isPro ? "Unlimited translations" : "1 translation/day";
+  const billingLabel = plan === "lifetime" ? "One-time" : isPro ? "Subscription" : "Not started";
 
   return (
     <div className="dashboard-page dashboard-page-wide">
@@ -196,10 +201,10 @@ export default function UserDashboard({ user, isPro, plan, onSignupNeeded, onOpe
               </div>
             </div>
 
-            {plan === "monthly" && (
+            {(plan === "plus" || plan === "unlimited" || plan === "monthly") && (
               <div className="manage-billing" style={{ marginTop: 20 }}>
                 <div className="manage-billing-info">
-                  <span className="pro-badge" style={{ marginBottom: 0 }}>✓ Pro Monthly</span>
+                  <span className="pro-badge" style={{ marginBottom: 0 }}>Paid plan active</span>
                   <p>Manage your subscription, payment method, or cancellation in Stripe.</p>
                 </div>
                 <button
@@ -228,7 +233,7 @@ export default function UserDashboard({ user, isPro, plan, onSignupNeeded, onOpe
               <div className="manage-billing" style={{ marginTop: 20 }}>
                 <div className="manage-billing-info">
                   <span className="pro-badge" style={{ marginBottom: 0 }}>Free Tier</span>
-                  <p>Upgrade when you want enough support to keep going, not just get started.</p>
+                  <p>Upgrade when you want more than one calmer restart each day.</p>
                 </div>
                 <button className="manage-billing-btn" onClick={() => onOpenPricing?.()}>
                   Start Finishing Tasks
@@ -249,4 +254,3 @@ export default function UserDashboard({ user, isPro, plan, onSignupNeeded, onOpe
     </div>
   );
 }
-

@@ -61,6 +61,7 @@ export default function App() {
   const [subView, setSubView] = useState("translate");
   const [dataLoaded, setDataLoaded] = useState(false);
   const [plan, setPlan] = useState(null);
+  const [capturedEmail, setCapturedEmail] = useState(() => localStorage.getItem("focusstep_captured_email") || "");
   const referralAttached = useRef(false);
   const accountMenuRef = useRef(null);
   const touchStartX = useRef(0);
@@ -301,6 +302,11 @@ export default function App() {
     navigateTo(nextView);
   };
 
+  useEffect(() => {
+    if (capturedEmail) localStorage.setItem("focusstep_captured_email", capturedEmail);
+    else localStorage.removeItem("focusstep_captured_email");
+  }, [capturedEmail]);
+
   // Public pages render without the main nav shell
   if (view === "task-share-public") {
     return (
@@ -387,6 +393,8 @@ export default function App() {
           <Translator
             onUpgrade={() => navigateTo("pricing")}
             onSignupNeeded={(reason) => setAuthModal(reason || "default")}
+            onLeadCaptured={(email) => setCapturedEmail(email)}
+            onOpenPricing={() => navigateTo("pricing")}
             user={user}
             isPro={isPro}
             plan={plan}
@@ -408,7 +416,7 @@ export default function App() {
           <AdminApp />
         )}
         {view === "pricing" && (
-          <Pricing onBack={() => navigateTo("app")} userEmail={user?.email || ""} setUserEmail={() => {}} isPro={isPro} />
+          <Pricing onBack={() => navigateTo("app")} userEmail={user?.email || capturedEmail || ""} isPro={isPro} plan={plan} />
 )}
         {view === "success" && <Success onContinue={() => navigateTo("app")} />}
         {view === "progress" && (

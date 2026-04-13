@@ -5,7 +5,7 @@ create table if not exists customers (
   id uuid default gen_random_uuid() primary key,
   email text unique not null,
   is_pro boolean default false,
-  plan text check (plan in ('monthly', 'lifetime')) default null,
+  plan text check (plan in ('free', 'plus', 'unlimited', 'monthly', 'lifetime')) default 'free',
   stripe_customer_id text,
   stripe_session_id text,
   created_at timestamptz default now(),
