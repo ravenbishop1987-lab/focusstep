@@ -108,18 +108,27 @@ function getDailyLimitForPlan(plan) {
 async function callGemini(systemPrompt, userContent, maxTokens) {
   const key = process.env.GEMINI_API_KEY;
   if (!key) throw new Error('GEMINI_API_KEY is not set');
-  const generationConfig = { maxOutputTokens: maxTokens, temperature: 0.7 };
-  // Flash models "think" first and that eats the output budget; turn it off so the JSON is not cut short.
-  if (/flash/i.test(GEMINI_MODEL)) generationConfig.thinkingConfig = { thinkingBudget: 0 };
-  const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(GEMINI_MODEL)}:generateContent`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key },
-    body: JSON.stringify({
-      systemInstruction: { parts: [{ text: systemPrompt }] },
-      contents: [{ role: 'user', parts: [{ text: userContent }] }],
-      generationConfig
-    })
-  });
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(GEMINI_MODEL)}:generateContent`;
+  const send = (withThinkingOff) => {
+    const generationConfig = { maxOutputTokens: maxTokens, temperature: 0.7 };
+    // Flash models "think" first and that eats the output budget; turn it off so the JSON is not cut short.
+    if (withThinkingOff) generationConfig.thinkingConfig = { thinkingBudget: 0 };
+    return fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key },
+      body: JSON.stringify({
+        systemInstruction: { parts: [{ text: systemPrompt }] },
+        contents: [{ role: 'user', parts: [{ text: userContent }] }],
+        generationConfig
+      })
+    });
+  };
+  let res = await send(/flash/i.test(GEMINI_MODEL));
+  if (res.status === 400) {
+    const errText = await res.clone().text();
+    // some newer models do not accept thinkingBudget: retry once without it
+    if (/thinking/i.test(errText)) res = await send(false);
+  }
   if (!res.ok) throw new Error(`Gemini error: ${res.status} ${await res.text()}`);
   const json = await res.json();
   const cand = json.candidates && json.candidates[0];
