@@ -552,6 +552,10 @@ app.post('/translate', optionalAuth, async (req, res) => {
   const status = getProStatusFromProxy(req) ?? await getProStatus(email);
   try {
     const moderation = await moderateTaskInput(task.trim());
+    if (!moderation.allow && moderation.category === 'unavailable') {
+      // the safety check could not run (AI key/credit/config problem): say so, don't call the task harmful
+      return res.status(503).json({ error: 'The AI service is temporarily unavailable. Please try again in a moment.', moderation });
+    }
     if (!moderation.allow) {
       return res.status(400).json({
         error: "I can't help break down harmful or abusive tasks. If you want, I can help rewrite it into something safe and respectful.",
