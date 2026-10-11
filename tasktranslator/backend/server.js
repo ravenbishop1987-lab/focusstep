@@ -51,6 +51,8 @@ app.use('/Translator', express.static(translatorFrontendDist));
 app.use('/translator', express.static(translatorFrontendDist));
 
 const USE_LOCAL_LM = process.env.USE_LOCAL_LM === 'true';
+const AI_PROVIDER = (process.env.AI_PROVIDER || 'claude').toLowerCase();   // 'claude' (default) or 'gemini'
+const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
 const LM_STUDIO_BASE = process.env.LM_STUDIO_URL || 'http://localhost:1234';
 const LM_STUDIO_URL = LM_STUDIO_BASE + '/v1/chat/completions';
 const LM_STUDIO_MODEL = process.env.LM_STUDIO_MODEL || 'local-model';
@@ -59,7 +61,7 @@ const LM_STUDIO_EMBED_URL = LM_STUDIO_BASE + '/v1/embeddings';
 const LM_STUDIO_EMBED_MODEL = process.env.LM_STUDIO_EMBED_MODEL || 'nomic-ai/nomic-embed-text-v1.5-GGUF';
 const SIMILARITY_THRESHOLD = parseFloat(process.env.SIMILARITY_THRESHOLD || '0.85');
 
-const anthropic = USE_LOCAL_LM ? null : new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+const anthropic = (USE_LOCAL_LM || AI_PROVIDER === 'gemini') ? null : new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
 const CONFIG = {
@@ -79,6 +81,7 @@ const ADMIN_EMAILS = new Set(
 );
 
 if (USE_LOCAL_LM) console.log(`[DEV] Using LM Studio at ${LM_STUDIO_URL} model="${LM_STUDIO_MODEL}"`);
+else console.log(`[AI] provider=${AI_PROVIDER}` + (AI_PROVIDER === 'gemini' ? ` model=${GEMINI_MODEL}` : ''));
 if (USE_EMBEDDINGS) console.log(`[EMBEDDINGS] Semantic search enabled — model="${LM_STUDIO_EMBED_MODEL}" threshold=${SIMILARITY_THRESHOLD}`);
 
 function hashIp(ip) {
@@ -101,7 +104,35 @@ function getDailyLimitForPlan(plan) {
   return null;
 }
 
+// Google Gemini via the plain REST API (no extra package). Used when AI_PROVIDER=gemini.
+async function callGemini(systemPrompt, userContent, maxTokens) {
+  const key = process.env.GEMINI_API_KEY;
+  if (!key) throw new Error('GEMINI_API_KEY is not set');
+  const generationConfig = { maxOutputTokens: maxTokens, temperature: 0.7 };
+  // Flash models "think" first and that eats the output budget; turn it off so the JSON is not cut short.
+  if (/flash/i.test(GEMINI_MODEL)) generationConfig.thinkingConfig = { thinkingBudget: 0 };
+  const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(GEMINI_MODEL)}:generateContent`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key },
+    body: JSON.stringify({
+      systemInstruction: { parts: [{ text: systemPrompt }] },
+      contents: [{ role: 'user', parts: [{ text: userContent }] }],
+      generationConfig
+    })
+  });
+  if (!res.ok) throw new Error(`Gemini error: ${res.status} ${await res.text()}`);
+  const json = await res.json();
+  const cand = json.candidates && json.candidates[0];
+  const text = cand && cand.content && Array.isArray(cand.content.parts) ? cand.content.parts.map((p) => p.text || '').join('') : '';
+  if (!text) {
+    const why = (cand && cand.finishReason) || (json.promptFeedback && json.promptFeedback.blockReason) || 'no candidates';
+    throw new Error(`Gemini returned no text (${why})`);
+  }
+  return text;
+}
+
 async function callAI(systemPrompt, userContent, maxTokens) {
+  if (!USE_LOCAL_LM && AI_PROVIDER === 'gemini') return callGemini(systemPrompt, userContent, maxTokens);
   if (USE_LOCAL_LM) {
     const res = await fetch(LM_STUDIO_URL, {
       method: 'POST',
