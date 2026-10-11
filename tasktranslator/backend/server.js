@@ -105,10 +105,10 @@ function getDailyLimitForPlan(plan) {
 }
 
 // Google Gemini via the plain REST API (no extra package). Used when AI_PROVIDER=gemini.
-async function callGemini(systemPrompt, userContent, maxTokens) {
+async function callGeminiOnce(model, systemPrompt, userContent, maxTokens) {
   const key = process.env.GEMINI_API_KEY;
   if (!key) throw new Error('GEMINI_API_KEY is not set');
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(GEMINI_MODEL)}:generateContent`;
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`;
   const send = (withThinkingOff) => {
     const generationConfig = { maxOutputTokens: maxTokens, temperature: 0.7 };
     // Flash models "think" first and that eats the output budget; turn it off so the JSON is not cut short.
@@ -123,13 +123,17 @@ async function callGemini(systemPrompt, userContent, maxTokens) {
       })
     });
   };
-  let res = await send(/flash/i.test(GEMINI_MODEL));
+  let res = await send(/flash/i.test(model));
   if (res.status === 400) {
     const errText = await res.clone().text();
     // some newer models do not accept thinkingBudget: retry once without it
     if (/thinking/i.test(errText)) res = await send(false);
   }
-  if (!res.ok) throw new Error(`Gemini error: ${res.status} ${await res.text()}`);
+  if (!res.ok) {
+    const err = new Error(`Gemini error: ${res.status} ${await res.text()}`);
+    err.status = res.status;
+    throw err;
+  }
   const json = await res.json();
   const cand = json.candidates && json.candidates[0];
   const text = cand && cand.content && Array.isArray(cand.content.parts) ? cand.content.parts.map((p) => p.text || '').join('') : '';
@@ -138,6 +142,27 @@ async function callGemini(systemPrompt, userContent, maxTokens) {
     throw new Error(`Gemini returned no text (${why})`);
   }
   return text;
+}
+
+// Gemini is sometimes overloaded (503) or rate limited (429): wait and retry, then try GEMINI_FALLBACK_MODEL if one is set.
+async function callGemini(systemPrompt, userContent, maxTokens) {
+  const models = [GEMINI_MODEL];
+  if (process.env.GEMINI_FALLBACK_MODEL && process.env.GEMINI_FALLBACK_MODEL !== GEMINI_MODEL) models.push(process.env.GEMINI_FALLBACK_MODEL);
+  const waits = [800, 2000, 4000];
+  let lastErr;
+  for (const model of models) {
+    for (let attempt = 0; attempt <= waits.length; attempt++) {
+      try {
+        return await callGeminiOnce(model, systemPrompt, userContent, maxTokens);
+      } catch (err) {
+        lastErr = err;
+        const retryable = [429, 500, 502, 503, 504].includes(err.status);
+        if (!retryable) break;                       // bad key, wrong model, blocked: retrying will not help
+        if (attempt < waits.length) await new Promise((r) => setTimeout(r, waits[attempt]));
+      }
+    }
+  }
+  throw lastErr;
 }
 
 // At startup (Gemini only): ask Google which models this key can use and print them, so GEMINI_MODEL is never a guess.
