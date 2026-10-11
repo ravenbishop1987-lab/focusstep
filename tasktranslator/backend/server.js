@@ -140,6 +140,20 @@ async function callGemini(systemPrompt, userContent, maxTokens) {
   return text;
 }
 
+// At startup (Gemini only): ask Google which models this key can use and print them, so GEMINI_MODEL is never a guess.
+async function logGeminiModels() {
+  if (USE_LOCAL_LM || AI_PROVIDER !== 'gemini' || !process.env.GEMINI_API_KEY) return;
+  try {
+    const res = await fetch('https://generativelanguage.googleapis.com/v1beta/models?pageSize=200', { headers: { 'x-goog-api-key': process.env.GEMINI_API_KEY } });
+    if (!res.ok) { console.warn(`[AI] could not list Gemini models: ${res.status} ${(await res.text()).slice(0, 300)}`); return; }
+    const json = await res.json();
+    const names = (json.models || []).filter((m) => (m.supportedGenerationMethods || []).includes('generateContent')).map((m) => String(m.name).replace(/^models\//, ''));
+    console.log(`[AI] GEMINI_MODEL=${GEMINI_MODEL} is ${names.includes(GEMINI_MODEL) ? 'AVAILABLE' : 'NOT in the list'}. Models your key can use: ${names.filter((n) => /gemini/i.test(n)).join(', ')}`);
+  } catch (err) {
+    console.warn('[AI] model list check failed:', err.message);
+  }
+}
+
 async function callAI(systemPrompt, userContent, maxTokens) {
   if (!USE_LOCAL_LM && AI_PROVIDER === 'gemini') return callGemini(systemPrompt, userContent, maxTokens);
   if (USE_LOCAL_LM) {
@@ -2306,5 +2320,6 @@ const HOST = '0.0.0.0';
 app.listen(PORT, HOST, async () => {
   console.log(`FocusStep API running on ${HOST}:${PORT}`);
   await checkCacheTable();
+  await logGeminiModels();
   await migrateToPlaintextKeys();
 });
